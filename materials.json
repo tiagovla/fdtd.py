@@ -1,0 +1,42 @@
+[
+    {
+        "name": "AIR",
+        "eps_r": 1.0,
+        "mu_r": 1.0,
+        "sigma_e": 0.0,
+        "sigma_m": 0.0,
+        "color": "#124242"
+    },
+    {
+        "name": "PEC",
+        "eps_r": 1.0,
+        "mu_r": 1.0,
+        "sigma_e": 1e10,
+        "sigma_m": 0.0,
+        "color": "#0000BC"
+    },
+    {
+        "name": "PMC",
+        "eps_r": 1.0,
+        "mu_r": 1.0,
+        "sigma_e": 0.0,
+        "sigma_m": 1e10,
+        "color": "#00BC00"
+    },
+    {
+        "name": "DIEL1",
+        "eps_r": 2.2,
+        "mu_r": 1.0,
+        "sigma_e": 0.0,
+        "sigma_m": 0.2,
+        "color": "#F12242"
+    },
+    {
+        "name": "DIEL2",
+        "eps_r": 3.2,
+        "mu_r": 1.4,
+        "sigma_e": 0.5,
+        "sigma_m": 0.3,
+        "color": "#0942F3"
+    }
+]
