@@ -15,7 +15,7 @@ class Object(ABC):
 
     def __init__(self):
         """Initialize the object."""
-        self.grid = None
+        pass
 
     @abstractproperty
     def name(self) -> str:
@@ -24,10 +24,6 @@ class Object(ABC):
     def __repr__(self):
         """Dev. string representation."""
         return f"{Object}({self.name})"
-
-    def register_grid(self, grid):
-        """Register grid."""
-        self.grid = grid
 
     def attach_to_grid(self):
         """Attach object to grid."""
@@ -63,19 +59,16 @@ class Brick(Object):
         self.bounding_box = BoundingBox(x_min, x_max, y_min, y_max, z_min,
                                         z_max)
 
-    def attach_to_grid(self):
+    def attach_to_grid(self, local_material_grid):
         """Attach the material of an object to the grid."""
-        slice_x = (self.grid._x_c > self.x_min) & (self.grid._x_c < self.x_max)
-        slice_y = (self.grid._y_c > self.y_min) & (self.grid._y_c < self.y_max)
-        slice_z = (self.grid._z_c > self.z_min) & (self.grid._z_c < self.z_max)
-        self.grid.cell_material[slice_x[:, None, None] *
-                                slice_y[None, :, None] *
-                                slice_z[None, None, :], :] = [
-                                    self.material.eps_r,
-                                    self.material.mu_r,
-                                    self.material.sigma_e,
-                                    self.material.sigma_m,
-                                ]
+        lmg = local_material_grid
+        l_x_c, l_y_c, l_z_c = np.meshgrid(lmg.x_c, lmg.y_c, lmg.z_c)
+        lmg.cell_material[:, :] = [
+            self.material.eps_r,
+            self.material.mu_r,
+            self.material.sigma_e,
+            self.material.sigma_m,
+        ]
 
     def plot_3d(self, ax, alpha=0.5):
         """Plot a brick and attach to an axis."""
@@ -125,28 +118,19 @@ class Sphere(Object):
             z_center + radius,
         )
 
-    def attach_to_grid(self):
+    def attach_to_grid(self, local_material_grid):
         """Attach the material of an object to the grid."""
-        x_min = self.x_center - self.radius
-        x_max = self.x_center + self.radius
-        y_min = self.x_center - self.radius
-        y_max = self.x_center + self.radius
-        z_min = self.x_center - self.radius
-        z_max = self.x_center + self.radius
-        slice_x = (self.grid._x_c > x_min) & (self.grid._x_c < x_max)
-        slice_y = (self.grid._y_c > y_min) & (self.grid._y_c < y_max)
-        slice_z = (self.grid._z_c > z_min) & (self.grid._z_c < z_max)
-        I, J, K = np.ix_(slice_x, slice_y, slice_z)
-        local_grid = self.grid.cell_material[I, J, K, :]
-
-        l_x_c, l_y_c, l_z_c = np.meshgrid(self.grid._x_c[slice_x],
-                                          self.grid._y_c[slice_y],
-                                          self.grid._z_c[slice_z])
+        lmg = local_material_grid
+        l_x_c, l_y_c, l_z_c = np.meshgrid(lmg.x_c, lmg.y_c, lmg.z_c)
+        print("lmgshape", lmg.x_c)
         mask = (l_x_c - self.x_center)**2 + (l_y_c - self.y_center)**2 + (
             l_z_c - self.z_center)**2 <= self.radius**2
-
-        local_grid[mask, :] = [1, 2, 3, 4]
-        self.grid.cell_material[I, J, K, :] = local_grid
+        lmg.cell_material[mask, :] = [
+            self.material.eps_r,
+            self.material.mu_r,
+            self.material.sigma_e,
+            self.material.sigma_m,
+        ]
 
     def plot_3d(self, ax, alpha=0.5):
         """Plot a brick and attach to an axis."""

@@ -8,7 +8,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from .constants import FREESPACE_PERMEABILITY, FREESPACE_PERMITTIVITY, PI, SPEED_LIGHT
 from .objects import Brick, Object, Sphere
 from .source import Source
-from .utils import BoundingBox
+from .utils import BoundingBox, LocalMaterialGrid
 
 
 class Grid:
@@ -149,15 +149,26 @@ class Grid:
     def prepare(self):
         """Prepare grid, add objects, sources, ..."""
         for obj in self.objects:
-            obj.register_grid(self)
-            obj.attach_to_grid()
+            bb = obj.bounding_box
+            slice_x = (self._x_c > bb.x_min) & (self._x_c < bb.x_max)
+            slice_y = (self._y_c > bb.y_min) & (self._y_c < bb.y_max)
+            slice_z = (self._z_c > bb.z_min) & (self._z_c < bb.z_max)
+            I, J, K = np.ix_(slice_x, slice_y, slice_z)
+            lmg = LocalMaterialGrid(
+                self.cell_material[I, J, K, :].copy(),
+                self._x_c[slice_x],
+                self._y_c[slice_y],
+                self._z_c[slice_z],
+            )
+            obj.attach_to_grid(lmg)
+            self.cell_material[I, J, K, :] = lmg.cell_material
 
     def plot_disc(self) -> None:
         """Plot material."""
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
         X, Y, Z = np.meshgrid(self._x_c, self._y_c, self._z_c)
-        mask = self.cell_material[:, :, :, 2] != 0
+        mask = self.cell_material[:, :, :, 0] != 1
         ax.scatter(X[mask], Y[mask], Z[mask])
 
         ax.grid(True)
@@ -168,7 +179,7 @@ class Grid:
         ax.set_ylabel("y")
         ax.set_zlabel("z")
         ax.view_init(elev=25, azim=-135)
-        # plt.show()
+        plt.show()
 
     def plot_3d(self) -> None:
         """Plot grid."""
