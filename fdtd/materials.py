@@ -80,6 +80,14 @@ class Material(metaclass=MaterialMeta):
         for props in data:
             cls(**props)
 
+    @classmethod
+    def from_name(cls, name: str):
+        """Initialize material from a name."""
+        for material in cls.__dict__["__materials__"]:
+            if name == material.name:
+                return material
+        raise MaterialNotFound(f"Material {name} not found.")
+
     def __hash__(self) -> int:
         """Implement hash function."""
         return hash(self.name)

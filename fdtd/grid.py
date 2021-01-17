@@ -8,6 +8,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from .constants import FREESPACE_PERMEABILITY, FREESPACE_PERMITTIVITY, PI, SPEED_LIGHT
 from .objects import Brick, Object, Sphere
 from .source import Source
+from .utils import BoundingBox
 
 
 class Grid:
@@ -32,25 +33,52 @@ class Grid:
         self.time_step = self.courant_number * min(
             self.grid_spacing) / SPEED_LIGHT
 
-        self.E = np.zeros((self.Nx, self.Ny, self.Nz, 3))
-        self.H = np.zeros((self.Nx, self.Ny, self.Nz, 3))
+        self.E: np.ndarray = np.zeros((self.Nx, self.Ny, self.Nz, 3))
+        self.H: np.ndarray = np.zeros((self.Nx, self.Ny, self.Nz, 3))
 
         self.permittivity = np.ones(
             (self.Nx, self.Ny, self.Nz, 3)) * permittivity
         self.permeability = np.ones(
             (self.Nx, self.Ny, self.Nz, 3)) * permeability
 
+        self.cell_material: np.ndarray = np.concatenate(
+            (
+                np.ones((self.Nx, self.Ny, self.Nz, 2)),
+                np.zeros((self.Nx, self.Ny, self.Nz, 2)),
+            ),
+            axis=3,
+        )
+        # Properties
+        self.eps_r_x = np.ones((self.Nx, self.Ny + 1, self.Nz + 1))
+        self.eps_r_y = np.ones((self.Nx + 1, self.Ny, self.Nz + 1))
+        self.eps_r_z = np.ones((self.Nx + 1, self.Ny + 1, self.Nz))
+        self.mu_r_x = np.ones((self.Nx + 1, self.Ny, self.Nz))
+        self.mu_r_y = np.ones((self.Nx, self.Ny + 1, self.Nz))
+        self.mu_r_z = np.ones((self.Nx, self.Ny + 1, self.Nz + 1))
+        self.sigma_e_x = np.ones((self.Nx, self.Ny + 1, self.Nz + 1))
+        self.sigma_e_y = np.ones((self.Nx + 1, self.Ny, self.Nz + 1))
+        self.sigma_e_z = np.ones((self.Nx + 1, self.Ny + 1, self.Nz))
+        self.sigma_m_x = np.ones((self.Nx + 1, self.Ny, self.Nz))
+        self.sigma_m_y = np.ones((self.Nx, self.Ny + 1, self.Nz))
+        self.sigma_m_z = np.ones((self.Nx, self.Ny + 1, self.Nz + 1))
         # Objects and Sources:
         self.sources: List[Source] = []
         self.objects: List[Object] = []
         self.current_time_step: int = 0
 
-        # Spacial limits:
-        self._x = self.grid_spacing[0] * np.arange(0, self.Nx + 1)
-        self._y = self.grid_spacing[1] * np.arange(0, self.Ny + 1)
-        self._z = self.grid_spacing[2] * np.arange(0, self.Nz + 1)
+        # Spacial center limits:
+        self._x_c: np.ndarray = self.grid_spacing[0] * (0.5 +
+                                                        np.arange(0, self.Nx))
+        self._y_c: np.ndarray = self.grid_spacing[1] * (0.5 +
+                                                        np.arange(0, self.Ny))
+        self._z_c: np.ndarray = self.grid_spacing[2] * (0.5 +
+                                                        np.arange(0, self.Nz))
 
     # TODO: Add center so the domain.
+    def average_parameters(self) -> None:
+        """Average the surrounding parameters."""
+        pass
+
     @property
     def x_min(self) -> float:
         """Return x_min of the grid domain."""
@@ -118,57 +146,37 @@ class Grid:
         """Add object to the grid."""
         self.objects.append(object)
 
+    def prepare(self):
+        """Prepare grid, add objects, sources, ..."""
+        for obj in self.objects:
+            obj.register_grid(self)
+            obj.attach_to_grid()
+
+    def plot_disc(self) -> None:
+        """Plot material."""
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+        X, Y, Z = np.meshgrid(self._x_c, self._y_c, self._z_c)
+        mask = self.cell_material[:, :, :, 2] != 0
+        ax.scatter(X[mask], Y[mask], Z[mask])
+
+        ax.grid(True)
+        ax.set_xlim([0, self.Nx * self.grid_spacing[0]])
+        ax.set_ylim([0, self.Ny * self.grid_spacing[1]])
+        ax.set_zlim([0, self.Nz * self.grid_spacing[2]])
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        ax.view_init(elev=25, azim=-135)
+        # plt.show()
+
     def plot_3d(self) -> None:
         """Plot grid."""
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
 
         for obj in self.objects:
-            color = obj.material.color
-            if isinstance(obj, Sphere):
-                u = np.linspace(0, 2 * PI, 100)
-                v = np.linspace(0, PI, 100)
-                x = obj.x_center + obj.radius * np.outer(np.cos(u), np.sin(v))
-                y = obj.y_center + obj.radius * np.outer(np.sin(u), np.sin(v))
-                z = obj.z_center + obj.radius * np.outer(
-                    np.ones(np.size(u)), np.cos(v))
-                ax.plot_surface(x, y, z, alpha=0.5, color=color)
-            if isinstance(obj, Brick):
-                X, Y, Z = np.meshgrid(
-                    [obj.x_min, obj.x_max],
-                    [obj.y_min, obj.y_max],
-                    [obj.z_min, obj.z_max],
-                )
-                ax.plot_surface(X[:, :, 0],
-                                Y[:, :, 0],
-                                Z[:, :, 0],
-                                alpha=0.5,
-                                color=color)
-                ax.plot_surface(X[:, :, -1],
-                                Y[:, :, -1],
-                                Z[:, :, -1],
-                                alpha=0.5,
-                                color=color)
-                ax.plot_surface(X[:, 0, :],
-                                Y[:, 0, :],
-                                Z[:, 0, :],
-                                alpha=0.5,
-                                color=color)
-                ax.plot_surface(X[:, -1, :],
-                                Y[:, -1, :],
-                                Z[:, -1, :],
-                                alpha=0.5,
-                                color=color)
-                ax.plot_surface(X[0, :, :],
-                                Y[0, :, :],
-                                Z[0, :, :],
-                                alpha=0.5,
-                                color=color)
-                ax.plot_surface(X[-1, :, :],
-                                Y[-1, :, :],
-                                Z[-1, :, :],
-                                alpha=0.5,
-                                color=color)
+            obj.plot_3d(ax)
         ax.grid(True)
         ax.set_xlim([0, self.Nx * self.grid_spacing[0]])
         ax.set_ylim([0, self.Ny * self.grid_spacing[1]])
