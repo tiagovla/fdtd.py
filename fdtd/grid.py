@@ -6,8 +6,9 @@ import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
 from .constants import FREESPACE_PERMEABILITY, FREESPACE_PERMITTIVITY, PI, SPEED_LIGHT
+from .lumped_elements import LumpedElement
 from .objects import Brick, Object, Sphere
-from .source import Source
+from .sources import Source
 from .utils import BoundingBox, LocalMaterialGrid
 
 
@@ -33,13 +34,13 @@ class Grid:
         self.time_step = self.courant_number * min(
             self.grid_spacing) / SPEED_LIGHT
 
-        self.E: np.ndarray = np.zeros((self.Nx, self.Ny, self.Nz, 3))
-        self.H: np.ndarray = np.zeros((self.Nx, self.Ny, self.Nz, 3))
-
-        self.permittivity = np.ones(
-            (self.Nx, self.Ny, self.Nz, 3)) * permittivity
-        self.permeability = np.ones(
-            (self.Nx, self.Ny, self.Nz, 3)) * permeability
+        # Field sizes:
+        #  H_x (Nx+1, Ny  , Nz  ) H_y (Nx  , Ny+1, Nz  ) H_z (Nx  , Ny  , Nz+1)
+        #  E_x (Nx  , Ny+1, Nz+1) E_y (Nx+1, Ny  , Nz+1) E_z (Nx+1, Ny+1, Nz  )
+        self.E: np.ndarray = np.zeros(
+            (self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+        self.H: np.ndarray = np.zeros(
+            (self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
 
         self.cell_material: np.ndarray = np.concatenate(
             (
@@ -48,22 +49,31 @@ class Grid:
             ),
             axis=3,
         )
-        # Properties
-        self.eps_r_x = np.ones((self.Nx, self.Ny + 1, self.Nz + 1))
-        self.eps_r_y = np.ones((self.Nx + 1, self.Ny, self.Nz + 1))
-        self.eps_r_z = np.ones((self.Nx + 1, self.Ny + 1, self.Nz))
-        self.mu_r_x = np.ones((self.Nx + 1, self.Ny, self.Nz))
-        self.mu_r_y = np.ones((self.Nx, self.Ny + 1, self.Nz))
-        self.mu_r_z = np.ones((self.Nx, self.Ny + 1, self.Nz + 1))
-        self.sigma_e_x = np.ones((self.Nx, self.Ny + 1, self.Nz + 1))
-        self.sigma_e_y = np.ones((self.Nx + 1, self.Ny, self.Nz + 1))
-        self.sigma_e_z = np.ones((self.Nx + 1, self.Ny + 1, self.Nz))
-        self.sigma_m_x = np.ones((self.Nx + 1, self.Ny, self.Nz))
-        self.sigma_m_y = np.ones((self.Nx, self.Ny + 1, self.Nz))
-        self.sigma_m_z = np.ones((self.Nx, self.Ny + 1, self.Nz + 1))
+
+        # Property sizes:
+        #   eps_r_x   (Nx  , Ny+1, Nz+1)
+        #   eps_r_y   (Nx+1, Ny  , Nz+1)
+        #   eps_r_z   (Nx+1, Ny+1, Nz  )
+        #   mu_r_x    (Nx+1, Ny  , Nz  )
+        #   mu_r_y    (Nx  , Ny+1, Nz  )
+        #   mu_r_z    (Nx  , Ny  , Nz+1)
+        #   sigma_e_x (Nx  , Ny+1, Nz+1)
+        #   sigma_e_y (Nx+1, Ny  , Nz+1)
+        #   sigma_e_z (Nx+1, Ny+1, Nz  )
+        #   sigma_m_x (Nx+1, Ny  , Nz  )
+        #   sigma_m_y (Nx  , Ny+1, Nz  )
+        #   sigma_m_z (Nx  , Ny  , Nz+1)
+
+        # Properties:
+        self.eps_r = np.ones((self.Nx + 1, self.Ny + 1, self.Nz + 1, 4))
+        self.mu_r = np.ones((self.Nx + 1, self.Ny + 1, self.Nz + 1, 4))
+        self.sigma_e = np.ones((self.Nx + 1, self.Ny + 1, self.Nz + 1, 4))
+        self.sigma_m = np.ones((self.Nx + 1, self.Ny + 1, self.Nz + 1, 4))
+
         # Objects and Sources:
         self.sources: List[Source] = []
         self.objects: List[Object] = []
+        self.elements: List[LumpedElement] = []
         self.current_time_step: int = 0
 
         # Spacial center limits:
@@ -73,6 +83,66 @@ class Grid:
                                                         np.arange(0, self.Ny))
         self._z_c: np.ndarray = self.grid_spacing[2] * (0.5 +
                                                         np.arange(0, self.Nz))
+
+    def _calculate_material_components(self):
+        cel_m = self.cell_material
+        # yapf: disable
+        self.eps_r[0:-1, 1:-1, 1:-1, 0] = \
+            0.25 * (
+                cel_m[:, 1:, 1:, 0] + cel_m[:, :-1, 1:, 0] +
+                cel_m[:, 1:, :-1, 0] + cel_m[:, :-1, :-1, 0]
+            )
+        self.eps_r[1:-1, 0:-1, 1:-1, 1] = \
+            0.25 * (
+                cel_m[1:, :, 1:, 0] + cel_m[:-1, :, 1:, 0] +
+                cel_m[1:, :, :-1, 0] + cel_m[:-1, :, :-1, 0]
+            )
+        self.eps_r[1:-1, 1:-1, 0:-1, 2] = \
+            0.25 * (
+                cel_m[1:, 1:, :, 0] + cel_m[:-1, 1:, :, 0] +
+                cel_m[1:, :-1, :, 0] + cel_m[:-1, :-1, :, 0]
+            )
+
+        self.sigma_e[0:-1, 1:-1, 1:-1, 0] = \
+            0.25 * (
+                cel_m[:, 1:, 1:, 3] + cel_m[:, :-1, 1:, 3] +
+                cel_m[:, 1:, :-1, 3] + cel_m[:, :-1, :-1, 3]
+            )
+        self.sigma_e[1:-1, 0:-1, 1:-1, 1] = \
+            0.25 * (
+                cel_m[1:, :, 1:, 3] + cel_m[:-1, :, 1:, 3] +
+                cel_m[1:, :, :-1, 3] + cel_m[:-1, :, :-1, 3]
+            )
+        self.sigma_e[1:-1, 1:-1, 0:-1, 2] = \
+            0.25 * (
+                cel_m[1:, 1:, :, 3] + cel_m[:-1, 1:, :, 3] +
+                cel_m[1:, :-1, :, 3] + cel_m[:-1, :-1, :, 3]
+            )
+
+        self.mu_r[1:-1, 0:-1, 0:-1, 0] = \
+            2 * (cel_m[1:, :, :, 1]*cel_m[:-1, :, :, 1]) / \
+            (cel_m[1:, :, :, 1] + cel_m[:-1, :, :, 1])
+
+        self.mu_r[0:-1, 1:-1, 0:-1, 1] = \
+            2 * (cel_m[:, 1:, :, 1]*cel_m[:, :-1, :, 1]) / \
+            (cel_m[:, 1:, :, 1] + cel_m[:, :-1, :, 1])
+
+        self.mu_r[0:-1, 0:-1, 1:-1, 2] = \
+            2 * (cel_m[:, :, 1:, 1]*cel_m[:, :, :-1, 1]) / \
+            (cel_m[:, :, 1:, 1] + cel_m[:, :, :-1, 1])
+
+        self.sigma_m[1:-1, 0:-1, 0:-1, 0] = \
+            2 * (cel_m[1:, :, :, 3]*cel_m[:-1, :, :, 3]) / \
+            (cel_m[1:, :, :, 3] + cel_m[:-1, :, :, 3])
+
+        self.sigma_m[0:-1, 1:-1, 0:-1, 1] = \
+            2 * (cel_m[:, 1:, :, 3]*cel_m[:, :-1, :, 3]) / \
+            (cel_m[:, 1:, :, 3] + cel_m[:, :-1, :, 3])
+
+        self.sigma_m[0:-1, 0:-1, 1:-1, 2] = \
+            2 * (cel_m[:, :, 1:, 3]*cel_m[:, :, :-1, 3]) / \
+            (cel_m[:, :, 1:, 3] + cel_m[:, :, :-1, 3])
+        # yapf: enable
 
     # TODO: Add center so the domain.
     def average_parameters(self) -> None:
@@ -162,6 +232,23 @@ class Grid:
             )
             obj.attach_to_grid(lmg)
             self.cell_material[I, J, K, :] = lmg.cell_material
+        self._calculate_material_components()
+        print(self.eps_r[:, :, :, 0])
+
+    def plot_planes(self) -> None:
+        """Plot material."""
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+        # X, Y = np.meshgrid(np.arange(0, self.Nx + 1),
+        #                    np.arange(0, self.Ny + 1))
+        # ax.plot_surface(X, Y, self.eps_r[:, :, 5, 0])
+        X, Y, Z = np.meshgrid(
+            np.arange(0, self.Nx + 1),
+            np.arange(0, self.Ny + 1),
+            np.arange(0, self.Nz + 1),
+        )
+        ax.scatter(X, Y, Z, c=self.eps_r[:, :, :, 0])
+        plt.show()
 
     def plot_disc(self) -> None:
         """Plot material."""
