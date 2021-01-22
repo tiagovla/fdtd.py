@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
-from .constants import FREESPACE_PERMEABILITY, FREESPACE_PERMITTIVITY, PI, SPEED_LIGHT
+from .constants import FREESPACE_PERMEABILITY as MU_0
+from .constants import FREESPACE_PERMITTIVITY as EPS_0
+from .constants import PI, SPEED_LIGHT
 from .lumped_elements import LumpedElement
 from .objects import Brick, Object, Sphere
 from .sources import Source
@@ -34,9 +36,12 @@ class Grid:
         self.time_step = self.courant_number * min(
             self.grid_spacing) / SPEED_LIGHT
 
+        self.dt = 0.1  # TODO: Define it
+
         # Field sizes:
         #  H_x (Nx+1, Ny  , Nz  ) H_y (Nx  , Ny+1, Nz  ) H_z (Nx  , Ny  , Nz+1)
         #  E_x (Nx  , Ny+1, Nz+1) E_y (Nx+1, Ny  , Nz+1) E_z (Nx+1, Ny+1, Nz  )
+
         self.E: np.ndarray = np.zeros(
             (self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
         self.H: np.ndarray = np.zeros(
@@ -83,6 +88,9 @@ class Grid:
                                                         np.arange(0, self.Ny))
         self._z_c: np.ndarray = self.grid_spacing[2] * (0.5 +
                                                         np.arange(0, self.Nz))
+        self._x: np.ndarray = self.grid_spacing[0] * np.arange(0, self.Nx + 1)
+        self._y: np.ndarray = self.grid_spacing[1] * np.arange(0, self.Ny + 1)
+        self._z: np.ndarray = self.grid_spacing[2] * np.arange(0, self.Nz + 1)
 
     def _calculate_material_components(self):
         cel_m = self.cell_material
@@ -200,9 +208,29 @@ class Grid:
         self.update_H()
         self.current_time_step += 1
 
+    def update_sources(self):
+        """Update sources."""
+        pass
+
+    def update_elements(self):
+        """Update elements."""
+        pass
+
     def update_E(self):
         """Update E Field."""
-        pass
+        self.current_time += self.dt / 2
+        self.H[:, :, :,
+               0] = (c_hxh * self.H[:, :, :, 0] + c_hxey *
+                     (self.E[:, :-1, 1:, 1] - E[:, :-1, :-1, 1]) + c_hxez *
+                     (self.E[:, 1:, :-1, 2] - self.E[:, :-1, :-1, 2]))
+        self.H[:, :, :,
+               1] = (c_hyh * self.H[:, :, :, 1] + c_hyez *
+                     (self.E[1:, :, :-1, 2] - self.E[:-1, :, :-1, 2]) +
+                     c_hyex * (self.E[:-1, :, 1:, 0] - self.E[:-1, :, :-1, 0]))
+        self.H[:, :, :,
+               2] = (c_hzh * self.H[:, :, :, 2] + c_hzex *
+                     (self.E[:-1, 1:, :, 0] - self.E[:-1, :-1, :, 0]) +
+                     c_hzey * (self.E[1:, :-1, :, 1] - self.E[:-1, :-1, :, 1]))
 
     def update_H(self):
         """Update H Field."""
@@ -215,6 +243,10 @@ class Grid:
     def add_object(self, object):
         """Add object to the grid."""
         self.objects.append(object)
+
+    def add_element(self, element):
+        """Add source to the grid."""
+        self.elements.append(element)
 
     def prepare(self):
         """Prepare grid, add objects, sources, ..."""
@@ -232,8 +264,23 @@ class Grid:
             )
             obj.attach_to_grid(lmg)
             self.cell_material[I, J, K, :] = lmg.cell_material
+
+        for source in self.sources:
+            bb = source.bounding_box
+            slice_x = (self._x > bb.x_min) & (self._x < bb.x_max)
+            slice_y = (self._y > bb.y_min) & (self._y < bb.y_max)
+            slice_z = (self._z > bb.z_min) & (self._z < bb.z_max)
+            I, J, K = np.ix_(slice_x, slice_y, slice_z)
+            lmg = LocalMaterialGrid(
+                self.cell_material[I, J, K, :].copy(),
+                self._x[slice_x],
+                self._y[slice_y],
+                self._z[slice_z],
+            )
+            obj.attach_to_grid(lmg)
+
         self._calculate_material_components()
-        print(self.eps_r[:, :, :, 0])
+        self._initialize_updating_coefficients()
 
     def plot_planes(self) -> None:
         """Plot material."""
@@ -249,6 +296,50 @@ class Grid:
         )
         ax.scatter(X, Y, Z, c=self.eps_r[:, :, :, 0])
         plt.show()
+
+    def _initialize_updating_coefficients(self):
+        dx, dy, dz = self.grid_spacing
+        dt = self.dt
+
+        eps_r_x = self.eps_r[:, :, :, 0]
+        eps_r_y = self.eps_r[:, :, :, 1]
+        eps_r_z = self.eps_r[:, :, :, 2]
+        mu_r_x = self.mu_r[:, :, :, 0]
+        mu_r_y = self.mu_r[:, :, :, 1]
+        mu_r_z = self.mu_r[:, :, :, 2]
+        sigma_e_x = self.sigma_e[:, :, :, 0]
+        sigma_e_y = self.sigma_e[:, :, :, 1]
+        sigma_e_z = self.sigma_e[:, :, :, 2]
+        sigma_m_x = self.sigma_m[:, :, :, 0]
+        sigma_m_y = self.sigma_m[:, :, :, 1]
+        sigma_m_z = self.sigma_m[:, :, :, 2]
+
+        c_exe = (2*eps_r_x*EPS_0 - dt*sigma_e_x) / (2*eps_r_x*EPS_0 +
+                                                    dt*sigma_e_x)
+        c_exhz = (2*dt/dy) / (2*eps_r_x*EPS_0 + dt*sigma_e_x)
+        c_exhy = -(2 * dt / dz) / (2*eps_r_x*EPS_0 + dt*sigma_e_x)
+
+        c_eye = (2*eps_r_y*EPS_0 - dt*sigma_e_y) / (2*eps_r_y*EPS_0 +
+                                                    dt*sigma_e_y)
+        c_eyhx = (2*dt/dz) / (2*eps_r_y*EPS_0 + dt*sigma_e_y)
+        c_eyhz = -(2 * dt / dx) / (2*eps_r_y*EPS_0 + dt*sigma_e_y)
+
+        c_eze = (2*eps_r_z*EPS_0 - dt*sigma_e_z) / (2*eps_r_z*EPS_0 +
+                                                    dt*sigma_e_z)
+        c_ezhy = (2*dt/dx) / (2*eps_r_z*EPS_0 + dt*sigma_e_z)
+        c_ezhx = -(2 * dt / dy) / (2*eps_r_z*EPS_0 + dt*sigma_e_z)
+
+        c_hxh = (2*mu_r_x*MU_0 - dt*sigma_m_x) / (2*mu_r_x*MU_0 + dt*sigma_m_x)
+        c_hxez = -(2 * dt / dy) / (2*mu_r_x*MU_0 + dt*sigma_m_x)
+        c_hxey = (2*dt/dz) / (2*mu_r_x*MU_0 + dt*sigma_m_x)
+
+        c_hyh = (2*mu_r_y*MU_0 - dt*sigma_m_y) / (2*mu_r_y*MU_0 + dt*sigma_m_y)
+        c_hyex = -(2 * dt / dz) / (2*mu_r_y*MU_0 + dt*sigma_m_y)
+        c_hyez = (2*dt/dx) / (2*mu_r_y*MU_0 + dt*sigma_m_y)
+
+        c_hzh = (2*mu_r_z*MU_0 - dt*sigma_m_z) / (2*mu_r_z*MU_0 + dt*sigma_m_z)
+        c_hzey = -(2 * dt / dx) / (2*mu_r_z*MU_0 + dt*sigma_m_z)
+        c_hzex = (2*dt/dy) / (2*mu_r_z*MU_0 + dt*sigma_m_z)
 
     def plot_disc(self) -> None:
         """Plot material."""

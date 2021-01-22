@@ -1,5 +1,7 @@
 from abc import ABC, abstractproperty
 
+from .utils import BoundingBox
+
 
 class Source(ABC):
     """An source to be placed in the grid."""
@@ -8,13 +10,13 @@ class Source(ABC):
         """Initialize the source."""
         pass
 
-    @abstractproperty
-    def name(self) -> str:
-        """Return the name of the source."""
+    #     @abstractproperty
+    #     def name(self) -> str:
+    #         """Return the name of the source."""
 
-    def __repr__(self):
-        """Dev. string representation."""
-        return f"{Source}({self.name})"
+    #     def __repr__(self):
+    #         """Dev. string representation."""
+    #         return f"{Source}({self.name})"
 
     def attach_to_grid(self):
         """Attach object to grid."""
@@ -42,8 +44,13 @@ class VoltageSource(Source):
         self.x_max = x_max
         self.y_max = y_max
         self.z_max = z_max
-        self.resistance = (resistance, )
+        self.resistance = resistance
         self.waveform_type = waveform_type
+        self.bounding_box = BoundingBox(x_min, x_max, y_min, y_max, z_min,
+                                        z_max)
+
+    def attach_to_grid(lgm):
+        pass
 
 
 class CurrentSource(Source):
@@ -67,5 +74,5 @@ class CurrentSource(Source):
         self.x_max = x_max
         self.y_max = y_max
         self.z_max = z_max
-        self.resistance = (resistance, )
+        self.resistance = resistance
         self.waveform_type = waveform_type
