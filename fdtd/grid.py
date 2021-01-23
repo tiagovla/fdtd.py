@@ -1,5 +1,9 @@
 """This module implements the grid."""
-from typing import List, Tuple, Union
+from __future__ import annotations
+
+import logging
+from math import floor
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,11 +11,15 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from .constants import FREESPACE_PERMEABILITY as MU_0
 from .constants import FREESPACE_PERMITTIVITY as EPS_0
-from .constants import PI, SPEED_LIGHT
+from .constants import SPEED_LIGHT
 from .lumped_elements import LumpedElement
-from .objects import Brick, Object, Sphere
+from .objects import Object
 from .sources import Source
-from .utils import BoundingBox, LocalMaterialGrid
+
+if TYPE_CHECKING:
+    from .objects import Object
+
+logger = logging.getLogger(__name__)
 
 
 class Grid:
@@ -21,8 +29,6 @@ class Grid:
         self,
         shape: Tuple[int, int, int],
         grid_spacing: Union[float, Tuple[float, float, float]],
-        permittivity: float = 1,
-        permeability: float = 1,
         courant_number: float = 1,
     ):
         """Initialize the grid."""
@@ -78,7 +84,7 @@ class Grid:
         # Objects and Sources:
         self.sources: List[Source] = []
         self.objects: List[Object] = []
-        self.elements: List[LumpedElement] = []
+        self.lumped_elements: List[LumpedElement] = []
         self.current_time_step: int = 0
 
         # Spacial center limits:
@@ -139,17 +145,17 @@ class Grid:
             2 * (cel_m[:, :, 1:, 1]*cel_m[:, :, :-1, 1]) / \
             (cel_m[:, :, 1:, 1] + cel_m[:, :, :-1, 1])
 
-        self.sigma_m[1:-1, 0:-1, 0:-1, 0] = \
-            2 * (cel_m[1:, :, :, 3]*cel_m[:-1, :, :, 3]) / \
-            (cel_m[1:, :, :, 3] + cel_m[:-1, :, :, 3])
+        # self.sigma_m[1:-1, 0:-1, 0:-1, 0] = \
+        #     2 * (cel_m[1:, :, :, 3]*cel_m[:-1, :, :, 3]) / \
+        #     (cel_m[1:, :, :, 3] + cel_m[:-1, :, :, 3])
 
-        self.sigma_m[0:-1, 1:-1, 0:-1, 1] = \
-            2 * (cel_m[:, 1:, :, 3]*cel_m[:, :-1, :, 3]) / \
-            (cel_m[:, 1:, :, 3] + cel_m[:, :-1, :, 3])
+        # self.sigma_m[0:-1, 1:-1, 0:-1, 1] = \
+        #     2 * (cel_m[:, 1:, :, 3]*cel_m[:, :-1, :, 3]) / \
+        #     (cel_m[:, 1:, :, 3] + cel_m[:, :-1, :, 3])
 
-        self.sigma_m[0:-1, 0:-1, 1:-1, 2] = \
-            2 * (cel_m[:, :, 1:, 3]*cel_m[:, :, :-1, 3]) / \
-            (cel_m[:, :, 1:, 3] + cel_m[:, :, :-1, 3])
+        # self.sigma_m[0:-1, 0:-1, 1:-1, 2] = \
+        #     2 * (cel_m[:, :, 1:, 3]*cel_m[:, :, :-1, 3]) / \
+        #     (cel_m[:, :, 1:, 3] + cel_m[:, :, :-1, 3])
         # yapf: enable
 
     # TODO: Add center so the domain.
@@ -197,15 +203,21 @@ class Grid:
         """Return time passed since the start of the simulation."""
         return self.current_time_step * self.time_step
 
-    def run(self, total_time: float):
+    def run(self, n_steps: int = 1000, total_time: Optional[float] = None):
         """Run simulation."""
-        for _ in np.arange(0, np.floor(total_time * self.time_step), 1):
-            self.step()
+        self.prepare()
+
+        if total_time:
+            n_steps = floor(total_time / self.time_step)
+        print(n_steps)
+
+        # for _ in range(0, n_steps):
+        #     self.step()
 
     def step(self):
         """Run a single step of the simulation."""
-        self.update_E()
-        self.update_H()
+        # self.update_E()
+        # self.update_H()
         self.current_time_step += 1
 
     def update_sources(self):
@@ -236,48 +248,24 @@ class Grid:
         """Update H Field."""
         pass
 
-    def add_source(self, source):
-        """Add source to the grid."""
-        self.sources.append(source)
-
-    def add_object(self, object):
-        """Add object to the grid."""
-        self.objects.append(object)
-
-    def add_element(self, element):
-        """Add source to the grid."""
-        self.elements.append(element)
+    def add(self, elm: Union[Object, Source, LumpedElement]):
+        """Add element to grid."""
+        elm._register_grid(self)
+        if isinstance(elm, Object):
+            self.objects.append(elm)
+        elif isinstance(elm, Source):
+            self.sources.append(elm)
+        elif isinstance(elm, LumpedElement):
+            self.lumped_elements.append(elm)
 
     def prepare(self):
         """Prepare grid, add objects, sources, ..."""
+        logger.info("Preparing objects, sources, lumped elements, ...")
         for obj in self.objects:
-            bb = obj.bounding_box
-            slice_x = (self._x_c > bb.x_min) & (self._x_c < bb.x_max)
-            slice_y = (self._y_c > bb.y_min) & (self._y_c < bb.y_max)
-            slice_z = (self._z_c > bb.z_min) & (self._z_c < bb.z_max)
-            I, J, K = np.ix_(slice_x, slice_y, slice_z)
-            lmg = LocalMaterialGrid(
-                self.cell_material[I, J, K, :].copy(),
-                self._x_c[slice_x],
-                self._y_c[slice_y],
-                self._z_c[slice_z],
-            )
-            obj.attach_to_grid(lmg)
-            self.cell_material[I, J, K, :] = lmg.cell_material
+            obj.attach_to_grid()
 
         for source in self.sources:
-            bb = source.bounding_box
-            slice_x = (self._x > bb.x_min) & (self._x < bb.x_max)
-            slice_y = (self._y > bb.y_min) & (self._y < bb.y_max)
-            slice_z = (self._z > bb.z_min) & (self._z < bb.z_max)
-            I, J, K = np.ix_(slice_x, slice_y, slice_z)
-            lmg = LocalMaterialGrid(
-                self.cell_material[I, J, K, :].copy(),
-                self._x[slice_x],
-                self._y[slice_y],
-                self._z[slice_z],
-            )
-            obj.attach_to_grid(lmg)
+            source.attach_to_grid()
 
         self._calculate_material_components()
         self._initialize_updating_coefficients()
@@ -298,6 +286,7 @@ class Grid:
         plt.show()
 
     def _initialize_updating_coefficients(self):
+        logger.info("Initializing updating coefficients...")
         dx, dy, dz = self.grid_spacing
         dt = self.dt
 

@@ -1,15 +1,8 @@
 """This module implements the objects."""
 import json
-from typing import List, Set, Tuple
-from weakref import WeakSet
+from typing import List
 
-
-class MaterialExists(Exception):
-    """Material already exists exception."""
-
-
-class MaterialNotFound(Exception):
-    """Material not found exception."""
+from .exceptions import MaterialExists, MaterialNotFound
 
 
 class MaterialMeta(type):
@@ -99,33 +92,3 @@ class Material(metaclass=MaterialMeta):
     def __repr__(self) -> str:
         """Representation of the material."""
         return f"Material({self.name})"
-
-    # @classmethod
-    # def AIR(cls, color: Tuple[int, int, int] = (10, 10, 10)) -> "Material":
-    #     """Air material."""
-    #     return cls("AIR", color=color)
-
-    # @classmethod
-    # def PEC(cls, color: Tuple[int, int, int] = (10, 100, 50)) -> "Material":
-    #     """PEC material."""
-    #     return cls("PEC", sigma_e=1e10, color=color)
-
-    # @classmethod
-    # def PMC(cls, color: Tuple[int, int, int] = (100, 10, 50)) -> "Material":
-    #     """PMC material."""
-    #     return cls("PMC", sigma_m=1e10, color=color)
-
-    # @classmethod
-    # def DIEL1(cls, color: Tuple[int, int, int] = (10, 50, 10)) -> "Material":
-    #     """Dielectric material 1."""
-    #     return cls("DIEL1", eps_r=2.2, sigma_m=0.2, color=color)
-
-    # @classmethod
-    # def DIEL2(cls, color: Tuple[int, int, int] = (50, 10, 10)) -> "Material":
-    #     """Dielectric material 2."""
-    #     return cls("DIEL2",
-    #                eps_r=3.2,
-    #                mu_r=1.4,
-    #                sigma_e=0.5,
-    #                sigma_m=0.3,
-    #                color=color)

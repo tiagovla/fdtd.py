@@ -1,39 +1,47 @@
 """This module implements the objects."""
-from abc import ABC, abstractproperty
+from __future__ import annotations
+
+import logging
 from functools import partial
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 
+from .bases import FDTDElementBase
 from .constants import PI
 from .materials import Material
 from .utils import BoundingBox
 
+logger = logging.getLogger(__name__)
 
-class Object(ABC):
+
+class Object(FDTDElementBase):
     """An object to be placed in the grid."""
 
-    def __init__(self):
+    def __init__(self,
+                 material: Union[str, Material],
+                 name: Optional[str] = None):
         """Initialize the object."""
-        pass
+        super().__init__()
 
-    @abstractproperty
-    def name(self) -> str:
-        """Return the name of the object."""
+        if isinstance(material, str):
+            self.material = Material.from_name(material)
+        else:
+            self.material = material
 
-    def __repr__(self):
-        """Dev. string representation."""
-        return f"{Object}({self.name})"
+        self.name = name if name else self._create_new_name()
 
     def attach_to_grid(self):
         """Attach object to grid."""
         pass
 
+    def plot_3d(self, ax, alpha=0.5):
+        """Plot a brick and attach to an axis."""
+        pass
+
 
 class Brick(Object):
     """Implement a brick object."""
-
-    name = "Brick"
 
     def __init__(
         self,
@@ -44,33 +52,43 @@ class Brick(Object):
         y_max: float,
         z_max: float,
         material: Union[str, Material],
+        name: Optional[str] = None,
     ):
         """Initialize the object."""
+        super().__init__(material, name)
+
         self.x_min = x_min
         self.y_min = y_min
         self.z_min = z_min
         self.x_max = x_max
         self.y_max = y_max
         self.z_max = z_max
-        if isinstance(material, str):
-            self.material = Material.from_name(material)
-        else:
-            self.material = material
+
         self.bounding_box = BoundingBox(x_min, x_max, y_min, y_max, z_min,
                                         z_max)
 
-    def attach_to_grid(self, local_material_grid):
+    def __repr__(self):
+        """Dev. string representation."""
+        return (f"Brick[name={self.name}, "
+                f"x_min={self.x_min}, y_min={self.y_min}, z_min={self.z_min}, "
+                f"x_max={self.x_max}, y_max={self.y_max}, z_max={self.z_max}]")
+
+    def attach_to_grid(self):
         """Attach the material of an object to the grid."""
-        lmg = local_material_grid
-        l_x_c, l_y_c, l_z_c = np.meshgrid(lmg.x_c, lmg.y_c, lmg.z_c)
-        lmg.cell_material[:, :] = [
+        grid = self.grid
+        bb = self.bounding_box
+        slice_x = (grid._x_c > bb.x_min) & (grid._x_c < bb.x_max)
+        slice_y = (grid._y_c > bb.y_min) & (grid._y_c < bb.y_max)
+        slice_z = (grid._z_c > bb.z_min) & (grid._z_c < bb.z_max)
+        I, J, K = np.ix_(slice_x, slice_y, slice_z)
+        grid.cell_material[I, J, K, :] = [
             self.material.eps_r,
             self.material.mu_r,
             self.material.sigma_e,
             self.material.sigma_m,
         ]
 
-    def plot_3d(self, ax, alpha=0.5):
+    def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""
         X, Y, Z = np.meshgrid(
             [self.x_min, self.x_max],
@@ -90,8 +108,6 @@ class Brick(Object):
 class Sphere(Object):
     """Implement a brick object."""
 
-    name = "Sphere"
-
     def __init__(
         self,
         x_center: float,
@@ -99,16 +115,15 @@ class Sphere(Object):
         z_center: float,
         radius: float,
         material: Union[str, Material],
+        name: Optional[str] = None,
     ):
         """Initialize the object."""
+        super().__init__(material, name)
         self.x_center = x_center
         self.y_center = y_center
         self.z_center = z_center
         self.radius = radius
-        if isinstance(material, str):
-            self.material = Material.from_name(material)
-        else:
-            self.material = material
+
         self.bounding_box = BoundingBox(
             x_center - radius,
             x_center + radius,
@@ -118,19 +133,33 @@ class Sphere(Object):
             z_center + radius,
         )
 
-    def attach_to_grid(self, local_material_grid):
+    def __repr__(self):
+        """Dev. string representation."""
+        return (f"Sphere[name={self.name}, "
+                f"x_c={self.x_center}, y_c={self.y_center}, "
+                f"z_c={self.z_center}, r={self.radius}]")
+
+    def attach_to_grid(self):
         """Attach the material of an object to the grid."""
-        lmg = local_material_grid
-        l_x_c, l_y_c, l_z_c = np.meshgrid(lmg.x_c, lmg.y_c, lmg.z_c)
-        print("lmgshape", lmg.x_c)
+        grid = self.grid
+        bb = self.bounding_box
+        slice_x = (grid._x_c > bb.x_min) & (grid._x_c < bb.x_max)
+        slice_y = (grid._y_c > bb.y_min) & (grid._y_c < bb.y_max)
+        slice_z = (grid._z_c > bb.z_min) & (grid._z_c < bb.z_max)
+        I, J, K = np.ix_(slice_x, slice_y, slice_z)
+        l_m_g = grid.cell_material[I, J, K, :]
+        l_x_c, l_y_c, l_z_c = np.meshgrid(grid._x_c[slice_x],
+                                          grid._y_c[slice_y],
+                                          grid._z_c[slice_z])
         mask = (l_x_c - self.x_center)**2 + (l_y_c - self.y_center)**2 + (
             l_z_c - self.z_center)**2 <= self.radius**2
-        lmg.cell_material[mask, :] = [
+        l_m_g[mask, :] = [
             self.material.eps_r,
             self.material.mu_r,
             self.material.sigma_e,
             self.material.sigma_m,
         ]
+        grid.cell_material[I, J, K, :] = l_m_g
 
     def plot_3d(self, ax, alpha=0.5):
         """Plot a brick and attach to an axis."""
