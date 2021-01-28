@@ -1,4 +1,6 @@
 """This module implements the objects."""
+from __future__ import annotations
+
 import json
 from typing import List
 
@@ -9,9 +11,9 @@ class MaterialMeta(type):
     """Material metaclass."""
 
     @property
-    def all(cls) -> List["Material"]:
+    def all(self) -> List["Material"]:
         """Return list of all materials registered."""
-        return list(cls.__dict__["__materials__"])
+        return list(self.__dict__["__materials__"])
 
     def __prepare__(cls, name):
         """Implement prepare function."""
@@ -26,7 +28,7 @@ class MaterialMeta(type):
 
 
 class Material(metaclass=MaterialMeta):
-    """The material of an object."""
+    """Implement a material."""
 
     def __init__(
         self,
@@ -37,16 +39,33 @@ class Material(metaclass=MaterialMeta):
         sigma_m: float = 0,
         color: str = "#000000",
     ):
-        """Initialize the object."""
+        """Initialize a material object.
+
+        Parameters
+        ----------
+        name : str
+            The name of the material.
+        eps_r : float
+            Relative permissivity.
+        mu_r : float
+            Relative permeability.
+        sigma_e : float
+            Electric condutivity.
+        sigma_m : float
+            Magnetic condutivity.
+        color : str
+            RGB color.
+        """
         self.name = name
         self.eps_r = eps_r
         self.mu_r = mu_r
-        self.sigma_e = sigma_e
-        self.sigma_m = sigma_m
+        self.sigma_e = sigma_e + 1e-20
+        self.sigma_m = sigma_m + 1e-20
         self.color = color
+
         self._register(self)
 
-    def _register(self, material) -> None:
+    def _register(self, material: Material) -> None:
         materials_set = self.__class__.__dict__["__materials__"]
         if material not in materials_set:
             materials_set.add(material)
@@ -57,25 +76,51 @@ class Material(metaclass=MaterialMeta):
         materials_set = self.__class__.__dict__["__materials__"]
         materials_set.discard(material)
 
-    def delete(self):
+    def _delete(self) -> None:
         """Delete material."""
         self._unregister(self)
 
     def __del__(self):
         """Implement destructor."""
-        self.delete()
+        self._delete()
 
     @classmethod
-    def load(cls, file_name):
-        """Load materials from .json file."""
+    def load(cls, file_name: str):
+        """Load materials from a .json file.
+
+        Parameters
+        ----------
+        file_name : str
+            Filename in the root directory.
+        """
         with open(file_name, "r") as f:
             data = json.load(f)
         for props in data:
             cls(**props)
 
     @classmethod
-    def from_name(cls, name: str):
-        """Initialize material from a name."""
+    def from_name(cls, name: str) -> Material:
+        """Initialize material from a name.
+
+        Parameters
+        ----------
+        name : str
+            Name of material.
+
+        Returns
+        -------
+        Material
+
+        Raises
+        -------
+        MaterialNotFound
+            If material is not found.
+
+        Notes
+        -------
+        Material[name] is equivalent to Material.from_name(name).
+
+        """
         for material in cls.__dict__["__materials__"]:
             if name == material.name:
                 return material

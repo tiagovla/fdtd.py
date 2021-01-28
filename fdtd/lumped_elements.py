@@ -1,9 +1,16 @@
+"""This module implement lumped elements."""
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
+import numpy as np
+
 from .bases import FDTDElementBase
-from .utils import BoundingBox
+from .constants import FREESPACE_PERMITTIVITY as EPS_0
+from .utils import BoundingBox, Direction
+
+logger = logging.getLogger(__name__)
 
 
 class LumpedElement(FDTDElementBase):
@@ -59,6 +66,64 @@ class Resistor(LumpedElement):
                 f"[name={self.name}, resistance={self.resistance}, "
                 f"x_min={self.x_min}, y_min={self.y_min}, z_min={self.z_min}, "
                 f"x_max={self.x_max}, y_max={self.y_max}, z_max={self.z_max}]")
+
+
+def attach_to_grid(self):
+    """Attach object to grid."""
+    self.idx_s = (
+        np.argmin(np.abs(self.grid._x - self.x_min)),
+        np.argmin(np.abs(self.grid._y - self.y_min)),
+        np.argmin(np.abs(self.grid._z - self.z_min)),
+    )
+    self.idx_e = (
+        np.argmin(np.abs(self.grid._x - self.x_max)),
+        np.argmin(np.abs(self.grid._y - self.y_max)),
+        np.argmin(np.abs(self.grid._z - self.z_max)),
+    )
+
+    dx, dy, dz = self.grid.grid_spacing
+    dt = self.grid.dt
+    Rs = self.resistance
+    term = (dt*dz) / (Rs*dx*dy)
+
+    if self.direction == Direction.X:
+        I = slice(self.idx_s[0], self.idx_e[0])
+        J = slice(self.idx_s[1], self.idx_e[1] + 1)
+        K = slice(self.idx_s[2], self.idx_e[2] + 1)
+
+        eps = self.grid.eps_r[I, J, K, 0] * EPS_0
+        sigma_e = self.grid.sigma_e[I, J, K, 0]
+
+        self.grid.c_ee[I, J, K, 0] = (2*eps - dt*sigma_e -
+                                      term) / (2*eps + dt*sigma_e + term)
+        self.grid.c_eh[I, J, K, 1] = (2*dt) / (2*eps + dt*sigma_e + term)
+        self.grid.c_eh[I, J, K, 2] = self.grid.c_eh[I, J, K, 1]
+
+    elif self.direction == Direction.Y:
+        I = slice(self.idx_s[0], self.idx_e[0])
+        J = slice(self.idx_s[1], self.idx_e[1] + 1)
+        K = slice(self.idx_s[2], self.idx_e[2] + 1)
+
+        eps = self.grid.eps_r[I, J, K, 1] * EPS_0
+        sigma_e = self.grid.sigma_e[I, J, K, 1]
+
+        self.grid.c_ee[I, J, K, 1] = (2*eps - dt*sigma_e -
+                                      term) / (2*eps + dt*sigma_e + term)
+        self.grid.c_eh[I, J, K, 0] = (2*dt) / (2*eps + dt*sigma_e + term)
+        self.grid.c_eh[I, J, K, 2] = self.grid.c_eh[I, J, K, 1]
+
+    else:
+        I = slice(self.idx_s[0], self.idx_e[0] + 1)
+        J = slice(self.idx_s[1], self.idx_e[1] + 1)
+        K = slice(self.idx_s[2], self.idx_e[2])
+
+        eps = self.grid.eps_r[I, J, K, 2] * EPS_0
+        sigma_e = self.grid.sigma_e[I, J, K, 2]
+
+        self.grid.c_ee[I, J, K, 2] = (2*eps - dt*sigma_e -
+                                      term) / (2*eps + dt*sigma_e + term)
+        self.grid.c_eh[I, J, K, 1] = (2*dt) / (2*eps + dt*sigma_e + term)
+        self.grid.c_eh[I, J, K, 0] = self.grid.c_eh[I, J, K, 1]
 
 
 class Capacitor(LumpedElement):

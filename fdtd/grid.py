@@ -13,7 +13,7 @@ from .constants import FREESPACE_PERMEABILITY as MU_0
 from .constants import FREESPACE_PERMITTIVITY as EPS_0
 from .constants import SPEED_LIGHT
 from .lumped_elements import LumpedElement
-from .objects import Object
+from .objects import Brick, Object
 from .sources import Source
 
 if TYPE_CHECKING:
@@ -48,15 +48,13 @@ class Grid:
         #  H_x (Nx+1, Ny  , Nz  ) H_y (Nx  , Ny+1, Nz  ) H_z (Nx  , Ny  , Nz+1)
         #  E_x (Nx  , Ny+1, Nz+1) E_y (Nx+1, Ny  , Nz+1) E_z (Nx+1, Ny+1, Nz  )
 
-        self.E: np.ndarray = np.zeros(
-            (self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
-        self.H: np.ndarray = np.zeros(
-            (self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+        self.E = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+        self.H = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
 
         self.cell_material: np.ndarray = np.concatenate(
             (
                 np.ones((self.Nx, self.Ny, self.Nz, 2)),
-                np.zeros((self.Nx, self.Ny, self.Nz, 2)),
+                1e-20 * np.ones((self.Nx, self.Ny, self.Nz, 2)),
             ),
             axis=3,
         )
@@ -76,16 +74,27 @@ class Grid:
         #   sigma_m_z (Nx  , Ny  , Nz+1)
 
         # Properties:
-        self.eps_r = np.ones((self.Nx + 1, self.Ny + 1, self.Nz + 1, 4))
-        self.mu_r = np.ones((self.Nx + 1, self.Ny + 1, self.Nz + 1, 4))
-        self.sigma_e = np.ones((self.Nx + 1, self.Ny + 1, self.Nz + 1, 4))
-        self.sigma_m = np.ones((self.Nx + 1, self.Ny + 1, self.Nz + 1, 4))
+        self.eps_r = np.ones((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+        self.mu_r = np.ones((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+        self.sigma_e = 1e-20 + np.zeros(
+            (self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+        self.sigma_m = 1e-20 + np.zeros(
+            (self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+
+        # Updating coefficients:
+        # E(t+dt) = c_ee*E(t)+c_eh*curl_H(t+dt)
+        # H(t+dt) = c_hh*H(t)+c_he*curl_E(t+dt)
+        self.c_ee = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+        self.c_eh = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+        self.c_hh = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+        self.c_he = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
 
         # Objects and Sources:
         self.sources: List[Source] = []
         self.objects: List[Object] = []
         self.lumped_elements: List[LumpedElement] = []
         self.current_time_step: int = 0
+        self.current_time: float = 0
 
         # Spacial center limits:
         self._x_c: np.ndarray = self.grid_spacing[0] * (0.5 +
@@ -145,17 +154,17 @@ class Grid:
             2 * (cel_m[:, :, 1:, 1]*cel_m[:, :, :-1, 1]) / \
             (cel_m[:, :, 1:, 1] + cel_m[:, :, :-1, 1])
 
-        # self.sigma_m[1:-1, 0:-1, 0:-1, 0] = \
-        #     2 * (cel_m[1:, :, :, 3]*cel_m[:-1, :, :, 3]) / \
-        #     (cel_m[1:, :, :, 3] + cel_m[:-1, :, :, 3])
+        self.sigma_m[1:-1, 0:-1, 0:-1, 0] = \
+            2 * (cel_m[1:, :, :, 3]*cel_m[:-1, :, :, 3]) / \
+            (cel_m[1:, :, :, 3] + cel_m[:-1, :, :, 3])
 
-        # self.sigma_m[0:-1, 1:-1, 0:-1, 1] = \
-        #     2 * (cel_m[:, 1:, :, 3]*cel_m[:, :-1, :, 3]) / \
-        #     (cel_m[:, 1:, :, 3] + cel_m[:, :-1, :, 3])
+        self.sigma_m[0:-1, 1:-1, 0:-1, 1] = \
+            2 * (cel_m[:, 1:, :, 3]*cel_m[:, :-1, :, 3]) / \
+            (cel_m[:, 1:, :, 3] + cel_m[:, :-1, :, 3])
 
-        # self.sigma_m[0:-1, 0:-1, 1:-1, 2] = \
-        #     2 * (cel_m[:, :, 1:, 3]*cel_m[:, :, :-1, 3]) / \
-        #     (cel_m[:, :, 1:, 3] + cel_m[:, :, :-1, 3])
+        self.sigma_m[0:-1, 0:-1, 1:-1, 2] = \
+            2 * (cel_m[:, :, 1:, 3]*cel_m[:, :, :-1, 3]) / \
+            (cel_m[:, :, 1:, 3] + cel_m[:, :, :-1, 3])
         # yapf: enable
 
     # TODO: Add center so the domain.
@@ -205,19 +214,21 @@ class Grid:
 
     def run(self, n_steps: int = 1000, total_time: Optional[float] = None):
         """Run simulation."""
-        self.prepare()
+        self._prepare()
+        self._initialize_updating_coefficients()
 
         if total_time:
             n_steps = floor(total_time / self.time_step)
-        print(n_steps)
 
-        # for _ in range(0, n_steps):
-        #     self.step()
+        logger.info(f"Running simulation with {n_steps} steps")
+
+        for _ in range(0, n_steps):
+            self.step()
 
     def step(self):
         """Run a single step of the simulation."""
-        # self.update_E()
-        # self.update_H()
+        self.update_H()
+        self.update_E()
         self.current_time_step += 1
 
     def update_sources(self):
@@ -231,22 +242,16 @@ class Grid:
     def update_E(self):
         """Update E Field."""
         self.current_time += self.dt / 2
-        self.H[:, :, :,
-               0] = (c_hxh * self.H[:, :, :, 0] + c_hxey *
-                     (self.E[:, :-1, 1:, 1] - E[:, :-1, :-1, 1]) + c_hxez *
-                     (self.E[:, 1:, :-1, 2] - self.E[:, :-1, :-1, 2]))
-        self.H[:, :, :,
-               1] = (c_hyh * self.H[:, :, :, 1] + c_hyez *
-                     (self.E[1:, :, :-1, 2] - self.E[:-1, :, :-1, 2]) +
-                     c_hyex * (self.E[:-1, :, 1:, 0] - self.E[:-1, :, :-1, 0]))
-        self.H[:, :, :,
-               2] = (c_hzh * self.H[:, :, :, 2] + c_hzex *
-                     (self.E[:-1, 1:, :, 0] - self.E[:-1, :-1, :, 0]) +
-                     c_hzey * (self.E[1:, :-1, :, 1] - self.E[:-1, :-1, :, 1]))
+        dx, dy, dz = self.grid_spacing
+        self.E *= self.c_ee
+        self.E += self.c_eh * self.curl_H(self.H, dx, dy, dz)
 
     def update_H(self):
         """Update H Field."""
-        pass
+        self.current_time += self.dt / 2
+        dx, dy, dz = self.grid_spacing
+        self.H *= self.c_hh
+        self.H += self.c_he * self.curl_E(self.E, dx, dy, dz)
 
     def add(self, elm: Union[Object, Source, LumpedElement]):
         """Add element to grid."""
@@ -258,7 +263,7 @@ class Grid:
         elif isinstance(elm, LumpedElement):
             self.lumped_elements.append(elm)
 
-    def prepare(self):
+    def _prepare(self):
         """Prepare grid, add objects, sources, ..."""
         logger.info("Preparing objects, sources, lumped elements, ...")
         for obj in self.objects:
@@ -268,6 +273,9 @@ class Grid:
             source.attach_to_grid()
 
         self._calculate_material_components()
+        for obj in self.objects:
+            if isinstance(obj, Brick):
+                obj.attach_to_grid_zero_thinkness()
         self._initialize_updating_coefficients()
 
     def plot_planes(self) -> None:
@@ -282,60 +290,49 @@ class Grid:
             np.arange(0, self.Ny + 1),
             np.arange(0, self.Nz + 1),
         )
-        ax.scatter(X, Y, Z, c=self.eps_r[:, :, :, 0])
+        ax.scatter(X, Y, Z, c=self.eps_r[:, :, :, 2])
         plt.show()
 
     def _initialize_updating_coefficients(self):
         logger.info("Initializing updating coefficients...")
         dx, dy, dz = self.grid_spacing
         dt = self.dt
+        eps = self.eps_r * EPS_0
+        mu = self.mu_r * MU_0
 
-        eps_r_x = self.eps_r[:, :, :, 0]
-        eps_r_y = self.eps_r[:, :, :, 1]
-        eps_r_z = self.eps_r[:, :, :, 2]
-        mu_r_x = self.mu_r[:, :, :, 0]
-        mu_r_y = self.mu_r[:, :, :, 1]
-        mu_r_z = self.mu_r[:, :, :, 2]
-        sigma_e_x = self.sigma_e[:, :, :, 0]
-        sigma_e_y = self.sigma_e[:, :, :, 1]
-        sigma_e_z = self.sigma_e[:, :, :, 2]
-        sigma_m_x = self.sigma_m[:, :, :, 0]
-        sigma_m_y = self.sigma_m[:, :, :, 1]
-        sigma_m_z = self.sigma_m[:, :, :, 2]
+        f_e = (dt * self.sigma_e) / (2*eps)
+        f_m = (dt * self.sigma_m) / (2*mu)
 
-        c_exe = (2*eps_r_x*EPS_0 - dt*sigma_e_x) / (2*eps_r_x*EPS_0 +
-                                                    dt*sigma_e_x)
-        c_exhz = (2*dt/dy) / (2*eps_r_x*EPS_0 + dt*sigma_e_x)
-        c_exhy = -(2 * dt / dz) / (2*eps_r_x*EPS_0 + dt*sigma_e_x)
+        self.c_ee = (1-f_e) / (1+f_e)
+        self.c_eh = dt / (eps * (1+f_e))
+        self.c_hh = (1-f_m) / (1+f_m)
+        self.c_he = -dt / (mu * (1+f_e))
 
-        c_eye = (2*eps_r_y*EPS_0 - dt*sigma_e_y) / (2*eps_r_y*EPS_0 +
-                                                    dt*sigma_e_y)
-        c_eyhx = (2*dt/dz) / (2*eps_r_y*EPS_0 + dt*sigma_e_y)
-        c_eyhz = -(2 * dt / dx) / (2*eps_r_y*EPS_0 + dt*sigma_e_y)
+    def plot_disc2(self) -> None:
+        """Plot material."""
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+        X, Y, Z = np.meshgrid(self._x, self._y, self._z)
+        mask = self.sigma_e[:, :, :, 1] > 0.101
+        ax.scatter(X[mask], Y[mask], Z[mask])
+        # print(self.sigma_e[:, :, :, 0])
 
-        c_eze = (2*eps_r_z*EPS_0 - dt*sigma_e_z) / (2*eps_r_z*EPS_0 +
-                                                    dt*sigma_e_z)
-        c_ezhy = (2*dt/dx) / (2*eps_r_z*EPS_0 + dt*sigma_e_z)
-        c_ezhx = -(2 * dt / dy) / (2*eps_r_z*EPS_0 + dt*sigma_e_z)
-
-        c_hxh = (2*mu_r_x*MU_0 - dt*sigma_m_x) / (2*mu_r_x*MU_0 + dt*sigma_m_x)
-        c_hxez = -(2 * dt / dy) / (2*mu_r_x*MU_0 + dt*sigma_m_x)
-        c_hxey = (2*dt/dz) / (2*mu_r_x*MU_0 + dt*sigma_m_x)
-
-        c_hyh = (2*mu_r_y*MU_0 - dt*sigma_m_y) / (2*mu_r_y*MU_0 + dt*sigma_m_y)
-        c_hyex = -(2 * dt / dz) / (2*mu_r_y*MU_0 + dt*sigma_m_y)
-        c_hyez = (2*dt/dx) / (2*mu_r_y*MU_0 + dt*sigma_m_y)
-
-        c_hzh = (2*mu_r_z*MU_0 - dt*sigma_m_z) / (2*mu_r_z*MU_0 + dt*sigma_m_z)
-        c_hzey = -(2 * dt / dx) / (2*mu_r_z*MU_0 + dt*sigma_m_z)
-        c_hzex = (2*dt/dy) / (2*mu_r_z*MU_0 + dt*sigma_m_z)
+        ax.grid(True)
+        ax.set_xlim([0, self.Nx * self.grid_spacing[0]])
+        ax.set_ylim([0, self.Ny * self.grid_spacing[1]])
+        ax.set_zlim([0, self.Nz * self.grid_spacing[2]])
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        ax.view_init(elev=25, azim=-135)
+        # plt.show()
 
     def plot_disc(self) -> None:
         """Plot material."""
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
         X, Y, Z = np.meshgrid(self._x_c, self._y_c, self._z_c)
-        mask = self.cell_material[:, :, :, 0] != 1
+        mask = self.cell_material[:, :, :, 2] > 0.001
         ax.scatter(X[mask], Y[mask], Z[mask])
 
         ax.grid(True)
@@ -364,3 +361,69 @@ class Grid:
         ax.set_zlabel("z")
         ax.view_init(elev=25, azim=-135)
         plt.show()
+
+    @staticmethod
+    def curl_H(H: np.ndarray, dx: float, dy: float, dz: float) -> np.ndarray:
+        """curl_H.
+
+        Parameters
+        ----------
+        H : np.ndarray
+            H field.
+        dx : float
+            Discrete spacing along the x axis.
+        dy : float
+            Discrete spacing along the y axis.
+        dz : float
+            Discrete spacing along the z axis.
+
+        Returns
+        -------
+        curl : np.ndarray
+            Return the curl of H.
+
+        """
+        curl = np.zeros(H.shape)
+        curl[:, 1:, :, 0] += (H[:, 1:, :, 2] - H[:, :-1, :, 2]) / dy
+        curl[:, :, 1:, 0] -= (H[:, :, 1:, 1] - H[:, :, :-1, 1]) / dz
+
+        curl[:, :, 1:, 1] += (H[:, :, 1:, 0] - H[:, :, :-1, 0]) / dz
+        curl[1:, :, :, 1] -= (H[1:, :, :, 2] - H[:-1, :, :, 2]) / dx
+
+        curl[1:, :, :, 2] += (H[1:, :, :, 1] - H[:-1, :, :, 1]) / dx
+        curl[:, 1:, :, 2] -= (H[:, 1:, :, 0] - H[:, :-1, :, 0]) / dy
+
+        return curl
+
+    @staticmethod
+    def curl_E(E: np.ndarray, dx: float, dy: float, dz: float):
+        """curl_E.
+
+        Parameters
+        ----------
+        E : np.ndarray
+            E field.
+        dx : float
+            Discrete spacing along the x axis.
+        dy : float
+            Discrete spacing along the y axis.
+        dz : float
+            Discrete spacing along the z axis.
+
+        Returns
+        -------
+        curl : np.ndarray
+            Return the curl of E.
+
+        """
+        curl = np.zeros(E.shape)
+        curl[:, :-1, :, 0] += (E[:, 1:, :, 2] - E[:, :-1, :, 2]) / dy
+        curl[:, :, :-1, 0] -= (E[:, :, 1:, 1] - E[:, :, :-1, 1]) / dz
+
+        curl[:, :, :-1, 1] += (E[:, :, 1:, 0] - E[:, :, :-1, 0]) / dz
+        curl[:-1, :, :, 1] -= (E[1:, :, :, 2] - E[:-1, :, :, 2]) / dx
+
+        curl[:-1, :, :, 2] += (E[1:, :, :, 1] - E[:-1, :, :, 1]) / dx
+        curl[:, :-1, :, 2] -= (E[:, 1:, :, 0] - E[:, :-1, :, 0]) / dy
+
+        return curl

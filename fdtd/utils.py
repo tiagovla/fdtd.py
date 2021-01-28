@@ -1,7 +1,16 @@
 """This module implements the utilities."""
 from dataclasses import dataclass
+from enum import Enum
 
 from numpy import ndarray
+
+
+class Direction(Enum):
+    """Direction of the object."""
+
+    X = "x"
+    Y = "y"
+    Z = "z"
 
 
 @dataclass

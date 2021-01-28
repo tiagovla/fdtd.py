@@ -77,9 +77,9 @@ class Brick(Object):
         """Attach the material of an object to the grid."""
         grid = self.grid
         bb = self.bounding_box
-        slice_x = (grid._x_c > bb.x_min) & (grid._x_c < bb.x_max)
-        slice_y = (grid._y_c > bb.y_min) & (grid._y_c < bb.y_max)
-        slice_z = (grid._z_c > bb.z_min) & (grid._z_c < bb.z_max)
+        slice_x = (grid._x_c >= bb.x_min) & (grid._x_c <= bb.x_max)
+        slice_y = (grid._y_c >= bb.y_min) & (grid._y_c <= bb.y_max)
+        slice_z = (grid._z_c >= bb.z_min) & (grid._z_c <= bb.z_max)
         I, J, K = np.ix_(slice_x, slice_y, slice_z)
         grid.cell_material[I, J, K, :] = [
             self.material.eps_r,
@@ -87,6 +87,31 @@ class Brick(Object):
             self.material.sigma_e,
             self.material.sigma_m,
         ]
+
+    def attach_to_grid_zero_thinkness(self):
+        """Attach the coeficients directly to the property grid."""
+        s = self.idx_s = (
+            np.argmin(np.abs(self.grid._x - self.x_min)),
+            np.argmin(np.abs(self.grid._y - self.y_min)),
+            np.argmin(np.abs(self.grid._z - self.z_min)),
+        )
+        e = self.idx_e = (
+            np.argmin(np.abs(self.grid._x - self.x_max)),
+            np.argmin(np.abs(self.grid._y - self.y_max)),
+            np.argmin(np.abs(self.grid._z - self.z_max)),
+        )
+        sigma_e = self.grid.sigma_e
+        sigma_e_mat = self.material.sigma_e
+
+        if s[0] == e[0]:
+            sigma_e[s[0], s[1]:e[1], s[2]:e[2] + 1, 1] = sigma_e_mat
+            sigma_e[s[0], s[1]:e[1] + 1, s[2]:e[2], 2] = sigma_e_mat
+        elif s[1] == e[1]:
+            sigma_e[s[0]:e[1], s[1], s[2]:e[2] + 1, 0] = sigma_e_mat
+            sigma_e[s[0]:e[1] + 1, s[1], s[2]:e[2], 2] = sigma_e_mat
+        elif s[2] == e[2]:
+            sigma_e[s[0]:e[1], s[1]:e[1] + 1, s[2], 0] = sigma_e_mat
+            sigma_e[s[0]:e[1] + 1, s[1]:e[1], s[2], 1] = sigma_e_mat
 
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""
