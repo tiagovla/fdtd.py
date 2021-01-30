@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from numpy import ndarray
+import numpy as np
 
 
 class Direction(Enum):
@@ -23,3 +23,69 @@ class BoundingBox:
     y_max: float
     z_min: float
     z_max: float
+
+
+def curl_H(H: np.ndarray, dx: float, dy: float, dz: float) -> np.ndarray:
+    """curl_H.
+
+    Parameters
+    ----------
+    H : np.ndarray
+        H field.
+    dx : float
+        Discrete spacing along the x axis.
+    dy : float
+        Discrete spacing along the y axis.
+    dz : float
+        Discrete spacing along the z axis.
+
+    Returns
+    -------
+    curl : np.ndarray
+        Return the curl of H.
+
+    """
+    curl = np.zeros(H.shape)
+    curl[:, 1:, :, 0] += (H[:, 1:, :, 2] - H[:, :-1, :, 2]) / dy
+    curl[:, :, 1:, 0] -= (H[:, :, 1:, 1] - H[:, :, :-1, 1]) / dz
+
+    curl[:, :, 1:, 1] += (H[:, :, 1:, 0] - H[:, :, :-1, 0]) / dz
+    curl[1:, :, :, 1] -= (H[1:, :, :, 2] - H[:-1, :, :, 2]) / dx
+
+    curl[1:, :, :, 2] += (H[1:, :, :, 1] - H[:-1, :, :, 1]) / dx
+    curl[:, 1:, :, 2] -= (H[:, 1:, :, 0] - H[:, :-1, :, 0]) / dy
+
+    return curl
+
+
+def curl_E(E: np.ndarray, dx: float, dy: float, dz: float):
+    """curl_E.
+
+    Parameters
+    ----------
+    E : np.ndarray
+        E field.
+    dx : float
+        Discrete spacing along the x axis.
+    dy : float
+        Discrete spacing along the y axis.
+    dz : float
+        Discrete spacing along the z axis.
+
+    Returns
+    -------
+    curl : np.ndarray
+        Return the curl of E.
+
+    """
+    curl = np.zeros(E.shape)
+    curl[:, :-1, :, 0] += (E[:, 1:, :, 2] - E[:, :-1, :, 2]) / dy
+    curl[:, :, :-1, 0] -= (E[:, :, 1:, 1] - E[:, :, :-1, 1]) / dz
+
+    curl[:, :, :-1, 1] += (E[:, :, 1:, 0] - E[:, :, :-1, 0]) / dz
+    curl[:-1, :, :, 1] -= (E[1:, :, :, 2] - E[:-1, :, :, 2]) / dx
+
+    curl[:-1, :, :, 2] += (E[1:, :, :, 1] - E[:-1, :, :, 1]) / dx
+    curl[:, :-1, :, 2] -= (E[:, 1:, :, 0] - E[:, :-1, :, 0]) / dy
+
+    return curl

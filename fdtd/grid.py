@@ -12,9 +12,11 @@ from mpl_toolkits.mplot3d import Axes3D
 from .constants import FREESPACE_PERMEABILITY as MU_0
 from .constants import FREESPACE_PERMITTIVITY as EPS_0
 from .constants import SPEED_LIGHT
+from .detectors import Detector
 from .lumped_elements import LumpedElement
 from .objects import Brick, Object
 from .sources import Source
+from .utils import curl_E, curl_H
 
 if TYPE_CHECKING:
     from .objects import Object
@@ -29,7 +31,7 @@ class Grid:
         self,
         shape: Tuple[int, int, int],
         grid_spacing: Union[float, Tuple[float, float, float]],
-        courant_number: float = 1,
+        courant_factor: float = 0.9,
     ):
         """Initialize the grid."""
         if isinstance(grid_spacing, float):
@@ -37,12 +39,17 @@ class Grid:
         else:
             self.grid_spacing = grid_spacing
 
-        self.Nx, self.Ny, self.Nz = shape
-        self.courant_number = courant_number
-        self.time_step = self.courant_number * min(
-            self.grid_spacing) / SPEED_LIGHT
+        self.dx = self.grid_spacing[0]
+        self.dy = self.grid_spacing[1]
+        self.dz = self.grid_spacing[2]
 
-        self.dt = 0.1  # TODO: Define it
+        self.Nx, self.Ny, self.Nz = shape
+        self.courant_factor = courant_factor
+
+        self.dt = courant_factor / (SPEED_LIGHT *
+                                    np.sqrt((1 / self.grid_spacing[0]**2) +
+                                            (1 / self.grid_spacing[1]**2) +
+                                            (1 / self.grid_spacing[2]**2)))
 
         # Field sizes:
         #  H_x (Nx+1, Ny  , Nz  ) H_y (Nx  , Ny+1, Nz  ) H_z (Nx  , Ny  , Nz+1)
@@ -92,20 +99,19 @@ class Grid:
         # Objects and Sources:
         self.sources: List[Source] = []
         self.objects: List[Object] = []
+        self.detectors: List[Detector] = []
         self.lumped_elements: List[LumpedElement] = []
         self.current_time_step: int = 0
         self.current_time: float = 0
+        self.n_steps: int = 0
 
-        # Spacial center limits:
-        self._x_c: np.ndarray = self.grid_spacing[0] * (0.5 +
-                                                        np.arange(0, self.Nx))
-        self._y_c: np.ndarray = self.grid_spacing[1] * (0.5 +
-                                                        np.arange(0, self.Ny))
-        self._z_c: np.ndarray = self.grid_spacing[2] * (0.5 +
-                                                        np.arange(0, self.Nz))
-        self._x: np.ndarray = self.grid_spacing[0] * np.arange(0, self.Nx + 1)
-        self._y: np.ndarray = self.grid_spacing[1] * np.arange(0, self.Ny + 1)
-        self._z: np.ndarray = self.grid_spacing[2] * np.arange(0, self.Nz + 1)
+        # usefull auxiliary arrays:
+        self._x_c: np.ndarray = self.dx * (0.5 + np.arange(0, self.Nx))
+        self._y_c: np.ndarray = self.dy * (0.5 + np.arange(0, self.Ny))
+        self._z_c: np.ndarray = self.dz * (0.5 + np.arange(0, self.Nz))
+        self._x: np.ndarray = self.dx * np.arange(0, self.Nx + 1)
+        self._y: np.ndarray = self.dy * np.arange(0, self.Ny + 1)
+        self._z: np.ndarray = self.dz * np.arange(0, self.Nz + 1)
 
     def _calculate_material_components(self):
         cel_m = self.cell_material
@@ -168,7 +174,7 @@ class Grid:
         # yapf: enable
 
     # TODO: Add center so the domain.
-    def average_parameters(self) -> None:
+    def average_parameters(self):
         """Average the surrounding parameters."""
         pass
 
@@ -190,17 +196,17 @@ class Grid:
     @property
     def x_max(self) -> float:
         """Return x_max of the grid domain."""
-        return self.Nx * self.grid_spacing[0]
+        return self.Nx * self.dx
 
     @property
     def y_max(self) -> float:
         """Return y_max of the grid domain."""
-        return self.Ny * self.grid_spacing[1]
+        return self.Ny * self.dy
 
     @property
     def z_max(self) -> float:
         """Return z_max of the grid domain."""
-        return self.Nz * self.grid_spacing[2]
+        return self.Nz * self.dz
 
     @property
     def shape(self) -> Tuple[int, int, int]:
@@ -210,30 +216,50 @@ class Grid:
     @property
     def time_passed(self) -> float:
         """Return time passed since the start of the simulation."""
-        return self.current_time_step * self.time_step
+        return self.current_time_step * self.dt
 
     def run(self, n_steps: int = 1000, total_time: Optional[float] = None):
         """Run simulation."""
         self._prepare()
         self._initialize_updating_coefficients()
 
-        if total_time:
-            n_steps = floor(total_time / self.time_step)
+        for source in self.sources:
+            source.attach_to_grid()
 
-        logger.info(f"Running simulation with {n_steps} steps")
+        for elm in self.lumped_elements:
+            elm.attach_to_grid()
 
-        for _ in range(0, n_steps):
+        for det in self.detectors:
+            det.attach_to_grid()
+
+        self.n_steps = n_steps if not total_time else floor(total_time /
+                                                            self.dt)
+
+        logger.info(f"Running simulation with {self.n_steps} steps")
+
+        for _ in range(0, self.n_steps):
             self.step()
+
+        for det in self.detectors:
+            det.plot()
 
     def step(self):
         """Run a single step of the simulation."""
         self.update_H()
         self.update_E()
+        self.update_detectors()
+        self.update_sources()
         self.current_time_step += 1
+
+    def update_detectors(self):
+        """Update detectors."""
+        for det in self.detectors:
+            det.update()
 
     def update_sources(self):
         """Update sources."""
-        pass
+        for src in self.sources:
+            src.update()
 
     def update_elements(self):
         """Update elements."""
@@ -244,16 +270,16 @@ class Grid:
         self.current_time += self.dt / 2
         dx, dy, dz = self.grid_spacing
         self.E *= self.c_ee
-        self.E += self.c_eh * self.curl_H(self.H, dx, dy, dz)
+        self.E += self.c_eh * curl_H(self.H, dx, dy, dz)
 
     def update_H(self):
         """Update H Field."""
         self.current_time += self.dt / 2
         dx, dy, dz = self.grid_spacing
         self.H *= self.c_hh
-        self.H += self.c_he * self.curl_E(self.E, dx, dy, dz)
+        self.H += self.c_he * curl_E(self.E, dx, dy, dz)
 
-    def add(self, elm: Union[Object, Source, LumpedElement]):
+    def add(self, elm: Union[Object, Source, LumpedElement, Detector]):
         """Add element to grid."""
         elm._register_grid(self)
         if isinstance(elm, Object):
@@ -262,15 +288,14 @@ class Grid:
             self.sources.append(elm)
         elif isinstance(elm, LumpedElement):
             self.lumped_elements.append(elm)
+        elif isinstance(elm, Detector):
+            self.detectors.append(elm)
 
     def _prepare(self):
         """Prepare grid, add objects, sources, ..."""
         logger.info("Preparing objects, sources, lumped elements, ...")
         for obj in self.objects:
             obj.attach_to_grid()
-
-        for source in self.sources:
-            source.attach_to_grid()
 
         self._calculate_material_components()
         for obj in self.objects:
@@ -295,7 +320,6 @@ class Grid:
 
     def _initialize_updating_coefficients(self):
         logger.info("Initializing updating coefficients...")
-        dx, dy, dz = self.grid_spacing
         dt = self.dt
         eps = self.eps_r * EPS_0
         mu = self.mu_r * MU_0
@@ -314,7 +338,9 @@ class Grid:
         ax = fig.add_subplot(111, projection="3d")
         X, Y, Z = np.meshgrid(self._x, self._y, self._z)
         mask = self.sigma_e[:, :, :, 1] > 0.101
-        ax.scatter(X[mask], Y[mask], Z[mask])
+        x, y, z = np.nonzero(mask)
+        # ax.scatter(x * self.grid_spacing[0], y * self.grid_spacing[1],
+        #            z * self.grid_spacing[2])
         # print(self.sigma_e[:, :, :, 0])
 
         ax.grid(True)
@@ -352,78 +378,32 @@ class Grid:
 
         for obj in self.objects:
             obj.plot_3d(ax)
+
+        for src in self.sources:
+            src.plot_3d(ax)
+
+        for elm in self.lumped_elements:
+            elm.plot_3d(ax)
+
+        for det in self.detectors:
+            det.plot_3d(ax)
+
+        X, Y, Z = np.meshgrid(self._x, self._y, self._z, indexing="ij")
+        mask = self.sigma_e[:, :, :, 0] > 0.1
+        ax.scatter(X[mask] + self.dx / 2, Y[mask], Z[mask], c="blue")
+
+        mask = self.sigma_e[:, :, :, 1] > 0.1
+        ax.scatter(X[mask], Y[mask] + self.dy / 2, Z[mask], c="red")
+
         ax.grid(True)
-        ax.set_xlim([0, self.Nx * self.grid_spacing[0]])
-        ax.set_ylim([0, self.Ny * self.grid_spacing[1]])
-        ax.set_zlim([0, self.Nz * self.grid_spacing[2]])
+        ax.set_xticks(self._x)
+        ax.set_yticks(self._y)
+        ax.set_zticks(self._z)
+        ax.set_xlim([0, self.Nx * self.dx])
+        ax.set_ylim([0, self.Ny * self.dy])
+        ax.set_zlim([0, self.Nz * self.dz])
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
         ax.view_init(elev=25, azim=-135)
         plt.show()
-
-    @staticmethod
-    def curl_H(H: np.ndarray, dx: float, dy: float, dz: float) -> np.ndarray:
-        """curl_H.
-
-        Parameters
-        ----------
-        H : np.ndarray
-            H field.
-        dx : float
-            Discrete spacing along the x axis.
-        dy : float
-            Discrete spacing along the y axis.
-        dz : float
-            Discrete spacing along the z axis.
-
-        Returns
-        -------
-        curl : np.ndarray
-            Return the curl of H.
-
-        """
-        curl = np.zeros(H.shape)
-        curl[:, 1:, :, 0] += (H[:, 1:, :, 2] - H[:, :-1, :, 2]) / dy
-        curl[:, :, 1:, 0] -= (H[:, :, 1:, 1] - H[:, :, :-1, 1]) / dz
-
-        curl[:, :, 1:, 1] += (H[:, :, 1:, 0] - H[:, :, :-1, 0]) / dz
-        curl[1:, :, :, 1] -= (H[1:, :, :, 2] - H[:-1, :, :, 2]) / dx
-
-        curl[1:, :, :, 2] += (H[1:, :, :, 1] - H[:-1, :, :, 1]) / dx
-        curl[:, 1:, :, 2] -= (H[:, 1:, :, 0] - H[:, :-1, :, 0]) / dy
-
-        return curl
-
-    @staticmethod
-    def curl_E(E: np.ndarray, dx: float, dy: float, dz: float):
-        """curl_E.
-
-        Parameters
-        ----------
-        E : np.ndarray
-            E field.
-        dx : float
-            Discrete spacing along the x axis.
-        dy : float
-            Discrete spacing along the y axis.
-        dz : float
-            Discrete spacing along the z axis.
-
-        Returns
-        -------
-        curl : np.ndarray
-            Return the curl of E.
-
-        """
-        curl = np.zeros(E.shape)
-        curl[:, :-1, :, 0] += (E[:, 1:, :, 2] - E[:, :-1, :, 2]) / dy
-        curl[:, :, :-1, 0] -= (E[:, :, 1:, 1] - E[:, :, :-1, 1]) / dz
-
-        curl[:, :, :-1, 1] += (E[:, :, 1:, 0] - E[:, :, :-1, 0]) / dz
-        curl[:-1, :, :, 1] -= (E[1:, :, :, 2] - E[:-1, :, :, 2]) / dx
-
-        curl[:-1, :, :, 2] += (E[1:, :, :, 1] - E[:-1, :, :, 1]) / dx
-        curl[:, :-1, :, 2] -= (E[:, 1:, :, 0] - E[:, :-1, :, 0]) / dy
-
-        return curl

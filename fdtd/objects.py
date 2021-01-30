@@ -100,6 +100,7 @@ class Brick(Object):
             np.argmin(np.abs(self.grid._y - self.y_max)),
             np.argmin(np.abs(self.grid._z - self.z_max)),
         )
+
         sigma_e = self.grid.sigma_e
         sigma_e_mat = self.material.sigma_e
 
@@ -107,11 +108,12 @@ class Brick(Object):
             sigma_e[s[0], s[1]:e[1], s[2]:e[2] + 1, 1] = sigma_e_mat
             sigma_e[s[0], s[1]:e[1] + 1, s[2]:e[2], 2] = sigma_e_mat
         elif s[1] == e[1]:
-            sigma_e[s[0]:e[1], s[1], s[2]:e[2] + 1, 0] = sigma_e_mat
-            sigma_e[s[0]:e[1] + 1, s[1], s[2]:e[2], 2] = sigma_e_mat
+            sigma_e[s[0]:e[0], s[1], s[2]:e[2] + 1, 0] = sigma_e_mat
+            sigma_e[s[0]:e[0] + 1, s[1], s[2]:e[2], 2] = sigma_e_mat
         elif s[2] == e[2]:
-            sigma_e[s[0]:e[1], s[1]:e[1] + 1, s[2], 0] = sigma_e_mat
-            sigma_e[s[0]:e[1] + 1, s[1]:e[1], s[2], 1] = sigma_e_mat
+            sigma_e[s[0]:e[0], s[1]:e[1] + 1, s[2], 0] = sigma_e_mat
+            sigma_e[s[0]:e[0] + 1, s[1]:e[1], s[2], 1] = sigma_e_mat
+            pass
 
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""
