@@ -341,7 +341,6 @@ class Grid:
         x, y, z = np.nonzero(mask)
         # ax.scatter(x * self.grid_spacing[0], y * self.grid_spacing[1],
         #            z * self.grid_spacing[2])
-        # print(self.sigma_e[:, :, :, 0])
 
         ax.grid(True)
         ax.set_xlim([0, self.Nx * self.grid_spacing[0]])

@@ -140,9 +140,6 @@ class Resistor(LumpedElement):
             self.grid.c_ee[I, J, K, 2] = (2*eps - dt*sigma_e -
                                           term) / (2*eps + dt*sigma_e + term)
             self.grid.c_eh[I, J, K, 2] = (2*dt) / (2*eps + dt*sigma_e + term)
-            print(I, J, K)
-            print("hahah")
-            print(self.grid.c_eh[I, J, K, 2])
 
 
 class Capacitor(LumpedElement):

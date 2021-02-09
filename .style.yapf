@@ -1,5 +1,5 @@
 [style]
-based_on_style = pep8
+BASED_ON_STYLE = pep8
 ARITHMETIC_PRECEDENCE_INDICATION = True
 NO_SPACES_AROUND_SELECTED_BINARY_OPERATORS = True
-blank_line_before_nested_class_or_def = True
+BLANK_LINE_BEFORE_NESTED_CLASS_OR_DEF = True

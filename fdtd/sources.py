@@ -119,7 +119,6 @@ class VoltageSource(Source):
             np.argmin(np.abs(self.grid._z - self.z_max)),
         )
 
-        print(s, e)
         dx, dy, dz = self.grid.grid_spacing
         dt = self.grid.dt
         Rs = self.resistance
