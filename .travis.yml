@@ -1,0 +1,18 @@
+language: python
+python:
+  - "3.8"
+  - "3.9"      # current default Python on Travis CI
+# command to install dependencies
+before_install:
+  - pip install --upgrade pip
+  - pip install pytest-cov
+  - curl -sSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py | python
+  - export PATH="$HOME/.poetry/bin:$PATH"
+install:
+  - poetry install
+# command to run tests
+script:
+  - pytest --cov=./
+# command after sucess
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
