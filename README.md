@@ -5,6 +5,7 @@
 [![Build Status](https://travis-ci.com/tiagovla/fdtd.py.svg?branch=master)](https://travis-ci.com/tiagovla/fdtd.py)
 [![DeepSource](https://deepsource.io/gh/tiagovla/fdtd.py.svg/?label=active+issues)](https://deepsource.io/gh/tiagovla/fdtd.py/?ref=repository-badge)
 [![codecov](https://codecov.io/gh/tiagovla/fdtd.py/branch/master/graph/badge.svg?token=MC1GNINTAY)](https://codecov.io/gh/tiagovla/fdtd.py)
+[![Documentation Status](https://readthedocs.org/projects/fdtdpy/badge/?version=latest)](https://fdtdpy.readthedocs.io/en/latest/?badge=latest)
 # FDTD Framework for Electromagnetic Simulations
 
 

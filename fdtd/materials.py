@@ -28,7 +28,23 @@ class MaterialMeta(type):
 
 
 class Material(metaclass=MaterialMeta):
-    """Implement a material."""
+    """Implement a material.
+
+    Parameters
+    ----------
+    name : str
+        The name of the material.
+    eps_r : float
+        Relative permissivity.
+    mu_r : float
+        Relative permeability.
+    sigma_e : float
+        Electric condutivity.
+    sigma_m : float
+        Magnetic condutivity.
+    color : str
+        RGB color.
+    """
 
     def __init__(
         self,
@@ -39,23 +55,7 @@ class Material(metaclass=MaterialMeta):
         sigma_m: float = 0,
         color: str = "#000000",
     ):
-        """Initialize a material object.
-
-        Parameters
-        ----------
-        name : str
-            The name of the material.
-        eps_r : float
-            Relative permissivity.
-        mu_r : float
-            Relative permeability.
-        sigma_e : float
-            Electric condutivity.
-        sigma_m : float
-            Magnetic condutivity.
-        color : str
-            RGB color.
-        """
+        """Initialize a material object."""
         self.name = name
         self.eps_r = eps_r
         self.mu_r = mu_r
