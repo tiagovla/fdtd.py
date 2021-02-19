@@ -4,13 +4,15 @@ from enum import Enum
 
 import numpy as np
 
+from .exceptions import WrongBounding
+
 
 class Direction(Enum):
     """Direction of the object."""
 
-    X = "x"
-    Y = "y"
-    Z = "z"
+    X = 0
+    Y = 1
+    Z = 2
 
 
 @dataclass
@@ -23,6 +25,12 @@ class BoundingBox:
     y_max: float
     z_min: float
     z_max: float
+
+    def __post_init__(self):
+        """Check bounding constraints."""
+        if (self.x_max < self.x_min or self.y_max < self.y_min
+                or self.z_max < self.z_min):
+            raise WrongBounding
 
 
 def curl_H(H: np.ndarray, dx: float, dy: float, dz: float) -> np.ndarray:

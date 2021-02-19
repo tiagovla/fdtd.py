@@ -1,3 +1,4 @@
+
 """This module implement detectors."""
 from __future__ import annotations
 
@@ -5,6 +6,7 @@ import logging
 from functools import partial
 from typing import Optional
 
+import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -39,7 +41,7 @@ class Detector(FDTDElementBase):
         self.z_max = z_max
         self.name = name
         self.direction = direction
-        self.captured: np.ndarray = None
+        self.captured: Optional[np.ndarray] = None
         self._plot = plot
 
     def update(self):
@@ -129,4 +131,93 @@ class VoltageDetector(Detector):
                 self.grid.E[self.I, self.J, self.K, self.index])
         except TypeError:
             self.captured = np.zeros(self.grid.n_steps)
+            self.update()
+
+
+class EFieldDetector(Detector):
+    """Implement a voltage detector."""
+
+    def attach_to_grid(self):
+        """Attach object to grid."""
+        s = self.idx_s = (
+            np.argmin(np.abs(self.grid._x - self.x_min)),
+            np.argmin(np.abs(self.grid._y - self.y_min)),
+            np.argmin(np.abs(self.grid._z - self.z_min)),
+        )
+        e = self.idx_e = (
+            np.argmin(np.abs(self.grid._x - self.x_max)),
+            np.argmin(np.abs(self.grid._y - self.y_max)),
+            np.argmin(np.abs(self.grid._z - self.z_max)),
+        )
+        self.size = (e[0] - s[0] + 1, e[1] - s[1] + 1, e[2] - s[2] + 1)
+
+        self.I = slice(self.idx_s[0], self.idx_e[0] + 1)
+        self.J = slice(self.idx_s[1], self.idx_e[1] + 1)
+        self.K = slice(self.idx_s[2], self.idx_e[2] + 1)
+        logger.debug(
+            f"EFieldDetector attatched to {self.I}, {self.J} and {self.K}")
+
+    def plot_3d(self, ax, alpha: float = 0.5):
+        """Plot a brick and attach to an axis."""
+        X, Y, Z = np.meshgrid(
+            [self.x_min, self.x_max],
+            [self.y_min, self.y_max],
+            [self.z_min, self.z_max],
+        )
+        plot = partial(ax.plot_surface, alpha=alpha, color="#B0BF00")
+
+        plot(X[:, :, 0], Y[:, :, 0], Z[:, :, 0])
+        plot(X[:, :, -1], Y[:, :, -1], Z[:, :, -1])
+        plot(X[:, 0, :], Y[:, 0, :], Z[:, 0, :])
+        plot(X[:, -1, :], Y[:, -1, :], Z[:, -1, :])
+        plot(X[0, :, :], Y[0, :, :], Z[0, :, :])
+        plot(X[-1, :, :], Y[-1, :, :], Z[-1, :, :])
+
+    def plot(self):
+        if not self._plot:
+            return
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        logger.debug(f"shape of captured {self.captured.shape}")
+        ax.plot(self.captured.flatten())
+        plt.show()
+
+        # def plot(self):
+        #     """Plot."""
+        #     if not self._plot:
+        #         return
+
+        #     fig = plt.figure()
+        #     ax = fig.add_subplot(111)
+
+        #     X, Y = np.meshgrid(self.grid._x, self.grid._y, indexing="ij")
+
+        #     def animate(time_step):
+        #         ax.clear()
+        #         # ax.plot_surface(X, Y, abs(self.captured[:, :, 0, 20 * time_step]))
+        #         ax.pcolor(X,
+        #                   Y,
+        #                   abs(self.captured[:, :, 0, 5 * time_step]),
+        #                   cmap="PuBu_r")
+
+        ani = animation.FuncAnimation(
+            fig,
+            animate,
+            interval=1,
+            frames=int(np.floor(self.grid.n_steps / 5)),
+            repeat=False,
+        )
+        writergif = animation.PillowWriter(fps=30)
+        ani.save("animation.gif", writer=writergif)
+        # plt.show()
+
+    def update(self):
+        """Capture E Field."""
+        try:
+            self.captured[:, :, :, self.grid.current_time_step] = self.grid.E[
+                self.I, self.J, self.K, self.direction.value]
+        except TypeError:
+            size = self.size + (self.grid.n_steps, )
+            self.captured = np.zeros(size)
             self.update()

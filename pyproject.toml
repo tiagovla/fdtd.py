@@ -12,7 +12,6 @@ packages = [
 python = "^3.8"
 numpy = "^1.19.5"
 matplotlib = "^3.3.3"
-Sphinx = "^3.4.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

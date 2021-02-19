@@ -1,0 +1,329 @@
+
+\documentclass[10pt]{article}
+\usepackage{lipsum}
+\usepackage{booktabs}
+\usepackage{subcaption}
+\usepackage{tabularx}
+\usepackage{amsmath, amssymb}
+\usepackage{import}
+\usepackage{bm}
+\usepackage{listings}
+\usepackage{geometry}
+\usepackage{graphicx}
+
+\geometry{
+	a4paper,
+	total={170mm,257mm},
+	left=20mm,
+	top=20mm,
+}
+
+%%%Author definitions
+\newcommand{\executeiffilenewer}[3]{%
+	\ifnum\pdfstrcmp%
+		{\pdffilemoddate{#1}}%
+		{\pdffilemoddate{#2}}%
+		>0%
+			{\immediate\write18{#3}}%
+	\fi%
+}
+
+\newcommand{\includesvg}[2][]{%
+	\executeiffilenewer{#1#2.svg}{#1#2.pdf}%
+	{inkscape -z -D --file=#1#2.svg --export-pdf=#1#2.pdf --export-latex}%
+	\subimport{#1}{#2.pdf_tex}% s
+}
+\newcommand{\test}[2][]{
+	% \immediate\write\{inkscpe}
+
+}
+
+\title{\textbf{Theory\\ Finite-Difference Time-Domain}}
+\author{@tiagovla}
+\date{}
+
+\begin{document}
+\maketitle
+\section{Maxwell Equations}%
+\subsection{Equations}%
+
+\begin{equation}
+	\frac{\partial \vec{E}}{\partial t} =
+	\frac{1}{\epsilon} \left( \nabla \times \vec{H} - \sigma^{e} \vec{E} - \vec{J}_{i} \right)
+\end{equation}
+
+\begin{equation}
+	\frac{\partial E_{x}}{\partial t} =
+	\frac{1}{\epsilon_{x}} \left( \left[ \nabla \times \vec{H} \right] \cdot \hat{x} - \sigma^{e}_{x} E_{x} - J_{ix} \right) =
+	\frac{1}{\epsilon_{x}} \left( \frac{\partial H_{z}}{\partial y} - \frac{\partial H_{y}}{\partial z} - \sigma^{e}_{x} E_{x} - J_{ix} \right)
+\end{equation}
+
+\begin{equation}
+	\frac{\partial E_{y}}{\partial t} =
+	\frac{1}{\epsilon_{y}} \left( \left[ \nabla \times \vec{H} \right] \cdot \hat{y} - \sigma^{e}_{y} E_{y} - J_{iy} \right) =
+	\frac{1}{\epsilon_{y}} \left( \frac{\partial H_{x}}{\partial z} - \frac{\partial H_{z}}{\partial x} - \sigma^{e}_{y} E_{y} - J_{iy} \right)
+\end{equation}
+
+\begin{equation}
+	\frac{\partial E_{y}}{\partial t} =
+	\frac{1}{\epsilon_{z}} \left( \left[ \nabla \times \vec{H} \right] \cdot \hat{z} - \sigma^{e}_{z} E_{z} - J_{iz} \right) =
+	\frac{1}{\epsilon_{z}} \left( \frac{\partial H_{y}}{\partial x} - \frac{\partial H_{x}}{\partial y} - \sigma^{e}_{z} E_{z} - J_{iz} \right)
+\end{equation}
+
+
+
+\begin{equation}
+	\frac{\partial \vec{H}}{\partial t} =
+	\frac{1}{\mu} \left( - \nabla \times \vec{E} - \sigma^{m} \vec{H} - \vec{J}_{i} \right)
+\end{equation}
+
+\begin{equation}
+	\frac{\partial H_{x}}{\partial t} =
+	\frac{1}{\mu_{x}} \left( - \left[ \nabla \times \vec{E} \right] \cdot \hat{x} - \sigma^{m}_{x} H_{x} - J_{ix} \right) =
+	\frac{1}{\mu_{x}} \left( \frac{\partial E_{y}}{\partial z} - \frac{\partial E_{z}}{\partial y} - \sigma^{m}_{x} H_{x} - J_{ix} \right)
+\end{equation}
+
+\begin{equation}
+	\frac{\partial H_{y}}{\partial t} =
+	\frac{1}{\mu_{y}} \left( - \left[ \nabla \times \vec{E} \right] \cdot \hat{y} - \sigma^{m}_{y} H_{y} - J_{iy} \right) =
+	\frac{1}{\mu_{y}} \left( \frac{\partial E_{z}}{\partial x} - \frac{\partial E_{x}}{\partial z} - \sigma^{m}_{y} H_{y} - J_{iy} \right)
+\end{equation}
+
+\begin{equation}
+	\frac{\partial H_{y}}{\partial t} =
+	\frac{1}{\mu_{z}} \left( - \left[ \nabla \times \vec{E} \right] \cdot \hat{z} - \sigma^{m}_{z} H_{z} - J_{iz} \right) =
+	\frac{1}{\mu_{z}} \left( \frac{\partial E_{x}}{\partial y} - \frac{\partial E_{y}}{\partial x} - \sigma^{m}_{z} H_{z} - J_{iz} \right)
+\end{equation}
+
+
+
+\subsection{Discretization}%
+Electric Field:
+
+\begin{equation}
+	\begin{aligned}
+		\frac{E^{n+1}_{x}(i,j,k) - E_{x}^{n}(i,j,k)}{\Delta t} & =
+		\frac{\left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                   \\
+		                                                       & - \frac{\sigma^{e}_{x}(i,j,k)}{\epsilon_{x}(i,j,k)} E^{n+\frac{1}{2}}_{x}(i,j,k)
+		- \frac{1}{\epsilon_{x}(i,j,k)} J^{n+1}_{ix}(i,j,k)
+	\end{aligned}
+\end{equation}
+
+\begin{equation}
+	E^{n+\frac{1}{2}}_{x}(i,j,k) = \frac{E^{n+1}_{x}(i,j,k)+E^{n}_{x}(i,j,k)}{2}
+\end{equation}
+
+\begin{equation}
+	\begin{aligned}
+		\frac{E^{n+1}_{x}(i,j,k) - E^{n}_{x}(i,j,k)}{\Delta t} & =
+		\frac{\left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                                     \\
+		                                                       & - \frac{\sigma^{e}_{x}(i,j,k)}{\epsilon_{x}(i,j,k)}  \frac{E^{n+1}_{x}(i,j,k)+E^{n}_{x}(i,j,k)}{2}
+		- \frac{1}{\epsilon_{x}(i,j,k)} J^{n+1}_{ix}(i,j,k)
+	\end{aligned}
+\end{equation}
+
+\begin{equation}
+	\begin{aligned}
+		E^{n+1}_{x}(i,j,k) - E^{n}_{x}(i,j,k) & =
+		\frac{\Delta t \left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                                                                        \\
+		                                      & - \frac{\Delta t\sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)}  E^{n+1}_{x}(i,j,k)- \frac{\Delta t\sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)}   E^{n}_{x}(i,j,k) \\
+		                                      & - \frac{\Delta t}{\epsilon_{x}(i,j,k)} J^{n+1}_{ix}(i,j,k)
+	\end{aligned}
+\end{equation}
+
+\begin{equation}
+	\begin{aligned}
+		E^{n+1}_{x}(i,j,k) - E^{n}_{x}(i,j,k) & =
+		\frac{\Delta t \left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                                                                          \\
+		                                      & - \frac{\Delta t \sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)}  E^{n+1}_{x}(i,j,k)- \frac{\Delta t \sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)}   E^{n}_{x}(i,j,k) \\
+		                                      & - \frac{\Delta t}{\epsilon_{x}(i,j,k)} J^{n+1}_{ix}(i,j,k)
+	\end{aligned}
+\end{equation}
+
+\begin{equation}
+	\begin{aligned}
+		\left(1 + \frac{\Delta t \sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)} \right) E^{n+1}_{x}(i,j,k) & =
+		\frac{\Delta t \left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                                                                       \\
+		                                                                                                 & + \left( 1 - \frac{\Delta t \sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)} \right)   E^{n}_{x}(i,j,k) \\
+		                                                                                                 & - \frac{\Delta t}{\epsilon_{x}(i,j,k)} J^{n+1}_{ix}(i,j,k)
+	\end{aligned}
+\end{equation}
+
+\begin{equation}
+	\boxed{
+		f_{e} = \frac{\Delta t \sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)} )
+	}
+\end{equation}
+
+
+\begin{equation}
+	\boxed{
+		\begin{aligned}
+			\left[\nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) =
+			+\left[\frac{H^{n}_{z}(i,j,k)-H^{n}_{z}(i,j-1,k)}{\Delta y}
+			-\frac{H^{n}_{y}(i,j,k)-H^{n}_{y}(i,j,k-1)}{\Delta z} \right] \hat{x} \\
+			+\left[\frac{H^{n}_{x}(i,j,k)-H^{n}_{x}(i,j,k-1)}{\Delta z}
+			-\frac{H^{n}_{z}(i,j,k)-H^{n}_{z}(i-1,j,k)}{\Delta x} \right] \hat{y} \\
+			+\left[\frac{H^{n}_{y}(i,j,k)-H^{n}_{y}(i-1,j,k)}{\Delta x}
+			-\frac{H^{n}_{x}(i,j,k)-H^{n}_{x}(i,j-1,k)}{\Delta y} \right] \hat{z} \\
+		\end{aligned}
+	}
+\end{equation}
+
+\begin{equation}
+	\boxed{
+		\begin{aligned}
+			E^{n+1}_{x}(i,j,k) & = \frac{1-f_e}{1+f_e}  E^{n}_{x}(i,j,k)                                                                                 \\
+			                   & + \frac{\Delta t}{(1+f_e)\epsilon_{x}(i,j,k)} \left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x} \\
+			                   & - \frac{\Delta t}{(1+f_e)\epsilon_{x}(i,j,k)} J^{n+1}_{ix}(i,j,k)
+		\end{aligned}
+	}
+\end{equation}
+
+\begin{equation}
+	\boxed{
+		\begin{aligned}
+			E^{n+1}_{y}(i,j,k) & = \frac{1-f_e}{1+f_e}  E^{n}_{y}(i,j,k)                                                                                 \\
+			                   & + \frac{\Delta t}{(1+f_e)\epsilon_{y}(i,j,k)} \left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{y} \\
+			                   & - \frac{\Delta t}{(1+f_e)\epsilon_{y}(i,j,k)} J^{n+1}_{iy}(i,j,k)
+		\end{aligned}
+	}
+\end{equation}
+
+\begin{equation}
+	\boxed{
+		\begin{aligned}
+			E^{n+1}_{z}(i,j,k) & = \frac{1-f_e}{1+f_e}  E^{n}_{z}(i,j,k)                                                                                 \\
+			                   & + \frac{\Delta t}{(1+f_e)\epsilon_{z}(i,j,k)} \left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{z} \\
+			                   & - \frac{\Delta t}{(1+f_e)\epsilon_{z}(i,j,k)} J^{n+1}_{iz}(i,j,k)
+		\end{aligned}
+	}
+\end{equation}
+
+
+
+Magnetic Field:
+
+\begin{equation}
+	\begin{aligned}
+		\frac{H^{n+\frac{1}{2}}_{x}(i,j,k) - H_{x}^{n-\frac{1}{2}}(i,j,k)}{\Delta t} & =
+		\frac{\left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                         \\
+		                                                                             & - \frac{\sigma^{m}_{x}(i,j,k)}{\mu_{x}(i,j,k)} H^{n}_{x}(i,j,k)
+		- \frac{1}{\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
+	\end{aligned}
+\end{equation}
+
+\begin{equation}
+	H^{n}_{x}(i,j,k) = \frac{H^{n+\frac{1}{2}}_{x}(i,j,k)+H^{n-\frac{1}{2}}_{x}(i,j,k)}{2}
+\end{equation}
+
+\begin{equation}
+	\begin{aligned}
+		\frac{H^{n+\frac{1}{2}}_{x}(i,j,k) - H^{n-\frac{1}{2}}_{x}(i,j,k)}{\Delta t} & =
+		\frac{\left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                                                                             \\
+		                                                                             & - \frac{\sigma^{m}_{x}(i,j,k)}{\mu_{x}(i,j,k)}  \frac{H^{n+\frac{1}{2}}_{x}(i,j,k)+H^{n-\frac{1}{2}}_{x}(i,j,k)}{2}
+		- \frac{1}{\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
+	\end{aligned}
+\end{equation}
+
+\begin{equation}
+	\begin{aligned}
+		H^{n+\frac{1}{2}}_{x}(i,j,k) - H^{n-\frac{1}{2}}_{x}(i,j,k) & =
+		\frac{\Delta t \left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                                                                                                           \\
+		                                                            & - \frac{\Delta t\sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)}  H^{n+\frac{1}{2}}_{x}(i,j,k)- \frac{\Delta t\sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)}   H^{n-\frac{1}{2}}_{x}(i,j,k) \\
+		                                                            & - \frac{\Delta t}{\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
+	\end{aligned}
+\end{equation}
+
+\begin{equation}
+	\begin{aligned}
+		H^{n+\frac{1}{2}}_{x}(i,j,k) - H^{n-\frac{1}{2}}_{x}(i,j,k) & =
+		\frac{\Delta t \left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                                                                                                             \\
+		                                                            & - \frac{\Delta t \sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)}  H^{n+\frac{1}{2}}_{x}(i,j,k)- \frac{\Delta t \sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)}   H^{n-\frac{1}{2}}_{x}(i,j,k) \\
+		                                                            & - \frac{\Delta t}{\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
+	\end{aligned}
+\end{equation}
+
+\begin{equation}
+	\begin{aligned}
+		\left(1 + \frac{\Delta t \sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)} \right) H^{n+\frac{1}{2}}_{x}(i,j,k) & =
+		\frac{\Delta t \left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                                                                                    \\
+		                                                                                                      & + \left( 1 - \frac{\Delta t \sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)} \right)   H^{n-\frac{1}{2}}_{x}(i,j,k) \\
+		                                                                                                      & - \frac{\Delta t}{\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
+	\end{aligned}
+\end{equation}
+
+\begin{equation}
+	\boxed{
+		f_{m} = \frac{\Delta t \sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)} )
+	}
+\end{equation}
+
+
+\begin{equation}
+	\boxed{
+		\begin{aligned}
+			\left[\nabla \times \vec{E} \right]^{n}(i,j,k) =
+			\left[\frac{H^{n}_{z}(i,j+1,k)-H^{n}_{z}(i,j,k)}{\Delta y}
+			-\frac{H^{n}_{y}(i,j,k+1)-H^{n}_{y}(i,j,k)}{\Delta z} \right] \hat{x} \\
+			+\left[\frac{H^{n}_{x}(i,j,k+1)-H^{n}_{x}(i,j,k)}{\Delta z}
+			-\frac{H^{n}_{z}(i+1,j,k)-H^{n}_{z}(i,j,k)}{\Delta x} \right] \hat{y} \\
+			+\left[\frac{H^{n}_{y}(i+1,j,k)-H^{n}_{y}(i,j,k)}{\Delta x}
+			-\frac{H^{n}_{x}(i,j+1,k)-H^{n}_{x}(i,j,k)}{\Delta y} \right] \hat{z} \\
+		\end{aligned}
+	}
+\end{equation}
+
+
+\begin{equation}
+	\boxed{
+		\begin{aligned}
+			H^{n+\frac{1}{2}}_{x}(i,j,k) & = \frac{1-f_m}{1+f_m}  H^{n-\frac{1}{2}}_{x}(i,j,k)                                                    \\
+			                             & + \frac{\Delta t}{(1+f_m)\mu_{x}(i,j,k)} \left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x} \\
+			                             & - \frac{\Delta t}{(1+f_m)\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
+		\end{aligned}
+	}
+\end{equation}
+
+\begin{equation}
+	\boxed{
+		\begin{aligned}
+			H^{n+\frac{1}{2}}_{y}(i,j,k) & = \frac{1-f_m}{1+f_m}  H^{n-\frac{1}{2}}_{y}(i,j,k)                                                    \\
+			                             & + \frac{\Delta t}{(1+f_m)\mu_{y}(i,j,k)} \left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{y} \\
+			                             & - \frac{\Delta t}{(1+f_m)\mu_{y}(i,j,k)} M^{n}_{iy}(i,j,k)
+		\end{aligned}
+	}
+\end{equation}
+
+\begin{equation}
+	\boxed{
+		\begin{aligned}
+			H^{n+\frac{1}{2}}_{z}(i,j,k) & = \frac{1-f_m}{1+f_m}  H^{n-\frac{1}{2}}_{z}(i,j,k)                                                    \\
+			                             & + \frac{\Delta t}{(1+f_m)\mu_{z}(i,j,k)} \left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{z} \\
+			                             & - \frac{\Delta t}{(1+f_m)\mu_{z}(i,j,k)} M^{n}_{iz}(i,j,k)
+		\end{aligned}
+	}
+\end{equation}
+
+% \begin{figure}[h]
+% 	\centering
+% 	\begin{subfigure}[b]{0.8\textwidth}
+% 		\centering
+% 		\def\svgwidth{\columnwidth}
+% 		\includesvg[figures/]{image1}
+% 		\caption{}
+% 	\end{subfigure}
+
+% 	\begin{subfigure}[b]{0.8\textwidth}
+% 		\centering
+% 		\def\svgwidth{\columnwidth}
+% 		\includesvg[figures/]{image1}
+% 		\caption{}
+% 	\end{subfigure}
+% 	\caption{}
+% 	\label{}
+% \end{figure}
+
+
+\end{document}
+

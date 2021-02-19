@@ -113,6 +113,20 @@ class Grid:
         self._y: np.ndarray = self.dy * np.arange(0, self.Ny + 1)
         self._z: np.ndarray = self.dz * np.arange(0, self.Nz + 1)
 
+    def _calculate_material_components_simple(self):
+        self.eps_r[:-1, :-1, :-1, 0] = self.cell_material[:, :, :, 0]
+        self.eps_r[:-1, :-1, :-1, 1] = self.cell_material[:, :, :, 0]
+        self.eps_r[:-1, :-1, :-1, 2] = self.cell_material[:, :, :, 0]
+        self.mu_r[:-1, :-1, :-1, 0] = self.cell_material[:, :, :, 1]
+        self.mu_r[:-1, :-1, :-1, 1] = self.cell_material[:, :, :, 1]
+        self.mu_r[:-1, :-1, :-1, 2] = self.cell_material[:, :, :, 1]
+        self.sigma_e[:-1, :-1, :-1, 0] = self.cell_material[:, :, :, 2]
+        self.sigma_e[:-1, :-1, :-1, 1] = self.cell_material[:, :, :, 2]
+        self.sigma_e[:-1, :-1, :-1, 2] = self.cell_material[:, :, :, 2]
+        self.sigma_m[:-1, :-1, :-1, 0] = self.cell_material[:, :, :, 3]
+        self.sigma_m[:-1, :-1, :-1, 1] = self.cell_material[:, :, :, 3]
+        self.sigma_m[:-1, :-1, :-1, 2] = self.cell_material[:, :, :, 3]
+
     def _calculate_material_components(self):
         cel_m = self.cell_material
         # yapf: disable
@@ -248,18 +262,12 @@ class Grid:
         self.update_H()
         self.update_E()
         self.update_detectors()
-        self.update_sources()
         self.current_time_step += 1
 
     def update_detectors(self):
         """Update detectors."""
         for det in self.detectors:
             det.update()
-
-    def update_sources(self):
-        """Update sources."""
-        for src in self.sources:
-            src.update()
 
     def update_elements(self):
         """Update elements."""
@@ -272,12 +280,18 @@ class Grid:
         self.E *= self.c_ee
         self.E += self.c_eh * curl_H(self.H, dx, dy, dz)
 
+        for src in self.sources:
+            src.update_E()
+
     def update_H(self):
         """Update H Field."""
         self.current_time += self.dt / 2
         dx, dy, dz = self.grid_spacing
         self.H *= self.c_hh
         self.H += self.c_he * curl_E(self.E, dx, dy, dz)
+
+        for src in self.sources:
+            src.update_H()
 
     def add(self, elm: Union[Object, Source, LumpedElement, Detector]):
         """Add element to grid."""
@@ -297,11 +311,10 @@ class Grid:
         for obj in self.objects:
             obj.attach_to_grid()
 
-        self._calculate_material_components()
+        self._calculate_material_components_simple()
         for obj in self.objects:
             if isinstance(obj, Brick):
                 obj.attach_to_grid_zero_thinkness()
-        self._initialize_updating_coefficients()
 
     def plot_planes(self) -> None:
         """Plot material."""
@@ -330,17 +343,23 @@ class Grid:
         self.c_ee = (1-f_e) / (1+f_e)
         self.c_eh = dt / (eps * (1+f_e))
         self.c_hh = (1-f_m) / (1+f_m)
-        self.c_he = -dt / (mu * (1+f_e))
+        self.c_he = -dt / (mu * (1+f_m))
 
-    def plot_disc2(self) -> None:
+        logger.debug(f"c_ee {self.c_ee[0, 0, 0, 0]} {self.c_ee.shape}")
+        logger.debug(f"c_eh {self.c_eh[0, 0, 0, 0]} {self.c_eh.shape}")
+        logger.debug(f"c_hh {self.c_hh[0, 0, 0, 0]} {self.c_hh.shape}")
+        logger.debug(f"c_he {self.c_he[0, 0, 0, 0]} {self.c_he.shape}")
+
+    def plot_disc2(self):
         """Plot material."""
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
+
         X, Y, Z = np.meshgrid(self._x, self._y, self._z)
-        mask = self.sigma_e[:, :, :, 1] > 0.101
+        mask = self.eps_r[:, :, :, 1] > 1
         x, y, z = np.nonzero(mask)
-        # ax.scatter(x * self.grid_spacing[0], y * self.grid_spacing[1],
-        #            z * self.grid_spacing[2])
+        ax.scatter(x * self.grid_spacing[0], y * self.grid_spacing[1],
+                   z * self.grid_spacing[2])
 
         ax.grid(True)
         ax.set_xlim([0, self.Nx * self.grid_spacing[0]])
@@ -350,14 +369,14 @@ class Grid:
         ax.set_ylabel("y")
         ax.set_zlabel("z")
         ax.view_init(elev=25, azim=-135)
-        # plt.show()
+        plt.show()
 
-    def plot_disc(self) -> None:
+    def plot_disc3(self):
         """Plot material."""
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
-        X, Y, Z = np.meshgrid(self._x_c, self._y_c, self._z_c)
-        mask = self.cell_material[:, :, :, 2] > 0.001
+        X, Y, Z = np.meshgrid(self._x, self._y, self._z)
+        mask = self.eps_r[:, :, :, 2] > 1
         ax.scatter(X[mask], Y[mask], Z[mask])
 
         ax.grid(True)
@@ -370,7 +389,25 @@ class Grid:
         ax.view_init(elev=25, azim=-135)
         plt.show()
 
-    def plot_3d(self) -> None:
+    def plot_disc(self) -> None:
+        """Plot material."""
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+        X, Y, Z = np.meshgrid(self._x_c, self._y_c, self._z_c)
+        mask = self.cell_material[:, :, :, 0] > 1
+        ax.scatter(X[mask], Y[mask], Z[mask])
+
+        ax.grid(True)
+        ax.set_xlim([0, self.Nx * self.grid_spacing[0]])
+        ax.set_ylim([0, self.Ny * self.grid_spacing[1]])
+        ax.set_zlim([0, self.Nz * self.grid_spacing[2]])
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        ax.view_init(elev=25, azim=-135)
+        plt.show()
+
+    def plot_3d(self, z_view: bool = False):
         """Plot grid."""
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
@@ -405,4 +442,6 @@ class Grid:
         ax.set_ylabel("y")
         ax.set_zlabel("z")
         ax.view_init(elev=25, azim=-135)
+        if z_view:
+            ax.view_init(elev=90, azim=-90)
         plt.show()

@@ -19,3 +19,7 @@ class AlreadyRegistered(FDTDException):
 
 class OutBounds(FDTDException):
     """Object is out bounds exception."""
+
+
+class WrongBounding(FDTDException):
+    """Object's bounding is wrongly defined exception."""
