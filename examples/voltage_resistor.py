@@ -13,7 +13,7 @@ print("Loading materials...")
 Material.load("materials.json")
 
 print("Creating grid...")
-grid = Grid(shape=(10, 10, 10), grid_spacing=1e-3)
+grid = Grid(shape=(10, 10, 10), spacing=1e-3)
 
 print("Creating objects...")
 brick1 = Brick(*(4e-3, 2e-3, 8e-3), *(6e-3, 8e-3, 8e-3), "PEC")

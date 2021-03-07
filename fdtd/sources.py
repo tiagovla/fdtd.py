@@ -67,7 +67,7 @@ class Source(FDTDElementBase):
             np.argmin(np.abs(self.grid._z - self.z_max)),
         )
 
-        logger.debug(f"Source attatched to {self.idx_s} to {self.idx_e}")
+        logger.debug(f"Source attached to {self.idx_s} to {self.idx_e}")
 
     def update_E(self):
         """Update E fields."""
@@ -87,6 +87,106 @@ class Source(FDTDElementBase):
     def plot_3d(self, ax, alpha=0.5):
         """Plot a source and attach to an axis."""
         pass
+
+
+class ImpressedMagneticCurrentSource(Source):
+    """Implement an impressed electric current source."""
+
+    def update_H(self):
+        """Update field."""
+        nc = 20
+        tau = (nc * np.max([self.grid.dx, self.grid.dy])) / (2*C)
+        t_0 = 4.5 * tau
+        source_value = np.exp(-(((self.grid.current_time - t_0) / tau)**2))
+        self.grid.H[self.I, self.J, self.K, self.direction.value] += (
+            -self.grid.c_he[self.I, self.J, self.K, self.direction.value] *
+            source_value)
+
+    def attach_to_grid(self):
+        """Attach object to grid."""
+        self.idx_s = (
+            np.argmin(np.abs(self.grid._x - self.x_min)),
+            np.argmin(np.abs(self.grid._y - self.y_min)),
+            np.argmin(np.abs(self.grid._z - self.z_min)),
+        )
+        self.idx_e = (
+            np.argmin(np.abs(self.grid._x - self.x_max)),
+            np.argmin(np.abs(self.grid._y - self.y_max)),
+            np.argmin(np.abs(self.grid._z - self.z_max)),
+        )
+
+        logger.debug(
+            f"Source {self.name} attached to {self.idx_s} to {self.idx_e}")
+
+        self.I = slice(self.idx_s[0], self.idx_e[0] + 1)
+        self.J = slice(self.idx_s[1], self.idx_e[1] + 1)
+        self.K = slice(self.idx_s[2], self.idx_e[2] + 1)
+
+    def plot_3d(self, ax, alpha: float = 0.5):
+        """Plot a brick and attach to an axis."""
+        X, Y, Z = np.meshgrid(
+            [self.x_min, self.x_max],
+            [self.y_min, self.y_max],
+            [self.z_min, self.z_max],
+        )
+        plot = partial(ax.plot_surface, alpha=alpha, color="#00FF00")
+
+        plot(X[:, :, 0], Y[:, :, 0], Z[:, :, 0])
+        plot(X[:, :, -1], Y[:, :, -1], Z[:, :, -1])
+        plot(X[:, 0, :], Y[:, 0, :], Z[:, 0, :])
+        plot(X[:, -1, :], Y[:, -1, :], Z[:, -1, :])
+        plot(X[0, :, :], Y[0, :, :], Z[0, :, :])
+        plot(X[-1, :, :], Y[-1, :, :], Z[-1, :, :])
+
+
+class ImpressedElectricCurrentSource(Source):
+    """Implement an impressed electric current source."""
+
+    def update_E(self):
+        """Update field."""
+        nc = 20
+        tau = (nc * np.max([self.grid.dx, self.grid.dy])) / (2*C)
+        t_0 = 4.5 * tau
+        source_value = np.exp(-(((self.grid.current_time - t_0) / tau)**2))
+        self.grid.E[self.I, self.J, self.K, self.direction.value] += (
+            -self.grid.c_eh[self.I, self.J, self.K, self.direction.value] *
+            source_value)
+
+    def attach_to_grid(self):
+        """Attach object to grid."""
+        self.idx_s = (
+            np.argmin(np.abs(self.grid._x - self.x_min)),
+            np.argmin(np.abs(self.grid._y - self.y_min)),
+            np.argmin(np.abs(self.grid._z - self.z_min)),
+        )
+        self.idx_e = (
+            np.argmin(np.abs(self.grid._x - self.x_max)),
+            np.argmin(np.abs(self.grid._y - self.y_max)),
+            np.argmin(np.abs(self.grid._z - self.z_max)),
+        )
+
+        logger.debug(
+            f"Source {self.name} attached to {self.idx_s} to {self.idx_e}")
+
+        self.I = slice(self.idx_s[0], self.idx_e[0] + 1)
+        self.J = slice(self.idx_s[1], self.idx_e[1] + 1)
+        self.K = slice(self.idx_s[2], self.idx_e[2] + 1)
+
+    def plot_3d(self, ax, alpha: float = 0.5):
+        """Plot a brick and attach to an axis."""
+        X, Y, Z = np.meshgrid(
+            [self.x_min, self.x_max],
+            [self.y_min, self.y_max],
+            [self.z_min, self.z_max],
+        )
+        plot = partial(ax.plot_surface, alpha=alpha, color="#00FF00")
+
+        plot(X[:, :, 0], Y[:, :, 0], Z[:, :, 0])
+        plot(X[:, :, -1], Y[:, :, -1], Z[:, :, -1])
+        plot(X[:, 0, :], Y[:, 0, :], Z[:, 0, :])
+        plot(X[:, -1, :], Y[:, -1, :], Z[:, -1, :])
+        plot(X[0, :, :], Y[0, :, :], Z[0, :, :])
+        plot(X[-1, :, :], Y[-1, :, :], Z[-1, :, :])
 
 
 class EFieldSource(Source):
@@ -114,7 +214,7 @@ class EFieldSource(Source):
         )
 
         logger.debug(
-            f"Source {self.name} attatched to {self.idx_s} to {self.idx_e}")
+            f"Source {self.name} attached to {self.idx_s} to {self.idx_e}")
 
         self.I = slice(self.idx_s[0], self.idx_e[0] + 1)
         self.J = slice(self.idx_s[1], self.idx_e[1] + 1)
@@ -172,7 +272,7 @@ class VoltageSource(Source):
             np.argmin(np.abs(self.grid._z - self.z_max)),
         )
 
-        dx, dy, dz = self.grid.grid_spacing
+        dx, dy, dz = self.grid.spacing
         dt = self.grid.dt
         Rs = self.resistance
         term = (dt*dz) / (Rs*dx*dy)

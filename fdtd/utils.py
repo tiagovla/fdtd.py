@@ -53,7 +53,7 @@ def curl_H(H: np.ndarray, dx: float, dy: float, dz: float) -> np.ndarray:
         Return the curl of H.
 
     """
-    curl = np.zeros(H.shape)
+    curl = np.zeros_like(H)
     curl[:, 1:, :, 0] += (H[:, 1:, :, 2] - H[:, :-1, :, 2]) / dy
     curl[:, :, 1:, 0] -= (H[:, :, 1:, 1] - H[:, :, :-1, 1]) / dz
 
@@ -86,7 +86,7 @@ def curl_E(E: np.ndarray, dx: float, dy: float, dz: float):
         Return the curl of E.
 
     """
-    curl = np.zeros(E.shape)
+    curl = np.zeros_like(E)
     curl[:, :-1, :, 0] += (E[:, 1:, :, 2] - E[:, :-1, :, 2]) / dy
     curl[:, :, :-1, 0] -= (E[:, :, 1:, 1] - E[:, :, :-1, 1]) / dz
 

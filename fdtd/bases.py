@@ -31,3 +31,12 @@ class FDTDElementBase(ABC):
         """Create new name for the object."""
         cls.quantity += 1
         return f"{cls.__name__}_{cls.quantity}"
+
+    def attach_to_grid(self):
+        """Attach object to grid."""
+        pass
+
+    def detach_from_grid(self):
+        """Detach from grid."""
+        if self.grid:
+            self.grid = None

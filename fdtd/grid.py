@@ -8,7 +8,9 @@ from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
+from tqdm import tqdm
 
+from .boundaries import Boundary
 from .constants import FREESPACE_PERMEABILITY as MU_0
 from .constants import FREESPACE_PERMITTIVITY as EPS_0
 from .constants import SPEED_LIGHT
@@ -30,33 +32,37 @@ class Grid:
     def __init__(
         self,
         shape: Tuple[int, int, int],
-        grid_spacing: Union[float, Tuple[float, float, float]],
+        spacing: Union[float, Tuple[float, float, float]],
         courant_factor: float = 0.9,
     ):
         """Initialize the grid."""
-        if isinstance(grid_spacing, float):
-            self.grid_spacing = (grid_spacing, grid_spacing, grid_spacing)
+        if isinstance(spacing, float):
+            self.spacing = (spacing, spacing, spacing)
         else:
-            self.grid_spacing = grid_spacing
+            self.spacing = spacing
 
-        self.dx = self.grid_spacing[0]
-        self.dy = self.grid_spacing[1]
-        self.dz = self.grid_spacing[2]
-
+        self.dx, self.dy, self.dz = self.spacing
         self.Nx, self.Ny, self.Nz = shape
-        self.courant_factor = courant_factor
+        self.dim = sum([1 for s in self.shape if s > 1])
 
-        self.dt = courant_factor / (SPEED_LIGHT *
-                                    np.sqrt((1 / self.grid_spacing[0]**2) +
-                                            (1 / self.grid_spacing[1]**2) +
-                                            (1 / self.grid_spacing[2]**2)))
+        if 0 < courant_factor < 1:
+            self.courant_factor = courant_factor
+        else:
+            raise ValueError(
+                f"courant_factor {courant_factor} must be between 0 and 1")
 
-        # Field sizes:
-        #  H_x (Nx+1, Ny  , Nz  ) H_y (Nx  , Ny+1, Nz  ) H_z (Nx  , Ny  , Nz+1)
-        #  E_x (Nx  , Ny+1, Nz+1) E_y (Nx+1, Ny  , Nz+1) E_z (Nx+1, Ny+1, Nz  )
+        self.dt = self.courant_factor / (SPEED_LIGHT * np.sqrt(
+            np.float_power(
+                [
+                    s1 if s2 > 1 else np.inf
+                    for s1, s2 in zip(self.spacing, self.shape)
+                ],
+                -2,
+            ).sum()))
 
-        self.E = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
-        self.H = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+        self.E = np.zeros((self.Nx, self.Ny, self.Nz, 3), dtype=complex)
+        self.H = np.zeros((self.Nx, self.Ny, self.Nz, 3),
+                          dtype=complex)  # change to complex
 
         self.cell_material: np.ndarray = np.concatenate(
             (
@@ -66,41 +72,26 @@ class Grid:
             axis=3,
         )
 
-        # Property sizes:
-        #   eps_r_x   (Nx  , Ny+1, Nz+1)
-        #   eps_r_y   (Nx+1, Ny  , Nz+1)
-        #   eps_r_z   (Nx+1, Ny+1, Nz  )
-        #   mu_r_x    (Nx+1, Ny  , Nz  )
-        #   mu_r_y    (Nx  , Ny+1, Nz  )
-        #   mu_r_z    (Nx  , Ny  , Nz+1)
-        #   sigma_e_x (Nx  , Ny+1, Nz+1)
-        #   sigma_e_y (Nx+1, Ny  , Nz+1)
-        #   sigma_e_z (Nx+1, Ny+1, Nz  )
-        #   sigma_m_x (Nx+1, Ny  , Nz  )
-        #   sigma_m_y (Nx  , Ny+1, Nz  )
-        #   sigma_m_z (Nx  , Ny  , Nz+1)
-
         # Properties:
-        self.eps_r = np.ones((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
-        self.mu_r = np.ones((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
-        self.sigma_e = 1e-20 + np.zeros(
-            (self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
-        self.sigma_m = 1e-20 + np.zeros(
-            (self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+        self.eps_r = np.ones((self.Nx, self.Ny, self.Nz, 3))
+        self.mu_r = np.ones((self.Nx, self.Ny, self.Nz, 3))
+        self.sigma_e = 1e-20 + np.zeros((self.Nx, self.Ny, self.Nz, 3))
+        self.sigma_m = 1e-20 + np.zeros((self.Nx, self.Ny, self.Nz, 3))
 
         # Updating coefficients:
         # E(t+dt) = c_ee*E(t)+c_eh*curl_H(t+dt)
         # H(t+dt) = c_hh*H(t)+c_he*curl_E(t+dt)
-        self.c_ee = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
-        self.c_eh = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
-        self.c_hh = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
-        self.c_he = np.zeros((self.Nx + 1, self.Ny + 1, self.Nz + 1, 3))
+        self.c_ee = np.zeros((self.Nx, self.Ny, self.Nz, 3))
+        self.c_eh = np.zeros((self.Nx, self.Ny, self.Nz, 3))
+        self.c_hh = np.zeros((self.Nx, self.Ny, self.Nz, 3))
+        self.c_he = np.zeros((self.Nx, self.Ny, self.Nz, 3))
 
         # Objects and Sources:
         self.sources: List[Source] = []
         self.objects: List[Object] = []
         self.detectors: List[Detector] = []
         self.lumped_elements: List[LumpedElement] = []
+        self.boundaries: List[Boundary] = []
         self.current_time_step: int = 0
         self.current_time: float = 0
         self.n_steps: int = 0
@@ -109,23 +100,31 @@ class Grid:
         self._x_c: np.ndarray = self.dx * (0.5 + np.arange(0, self.Nx))
         self._y_c: np.ndarray = self.dy * (0.5 + np.arange(0, self.Ny))
         self._z_c: np.ndarray = self.dz * (0.5 + np.arange(0, self.Nz))
-        self._x: np.ndarray = self.dx * np.arange(0, self.Nx + 1)
-        self._y: np.ndarray = self.dy * np.arange(0, self.Ny + 1)
-        self._z: np.ndarray = self.dz * np.arange(0, self.Nz + 1)
+        self._x: np.ndarray = self.dx * np.arange(0, self.Nx)
+        self._y: np.ndarray = self.dy * np.arange(0, self.Ny)
+        self._z: np.ndarray = self.dz * np.arange(0, self.Nz)
+
+    def reset(self):
+        """Reset the grid's inner state."""
+        self.current_time_step = 0
+        self.current_time = 0
+        self.n_steps = 0
+
+        self.c_ee = 0
+        self.c_eh = 0
+        self.c_hh = 0
+        self.c_he = 0
+
+        self.eps_r[:] = 1
+        self.mu_r[:] = 1
+        self.sigma_e[:] = 1e-20
+        self.sigma_m[:] = 1e-20
 
     def _calculate_material_components_simple(self):
-        self.eps_r[:-1, :-1, :-1, 0] = self.cell_material[:, :, :, 0]
-        self.eps_r[:-1, :-1, :-1, 1] = self.cell_material[:, :, :, 0]
-        self.eps_r[:-1, :-1, :-1, 2] = self.cell_material[:, :, :, 0]
-        self.mu_r[:-1, :-1, :-1, 0] = self.cell_material[:, :, :, 1]
-        self.mu_r[:-1, :-1, :-1, 1] = self.cell_material[:, :, :, 1]
-        self.mu_r[:-1, :-1, :-1, 2] = self.cell_material[:, :, :, 1]
-        self.sigma_e[:-1, :-1, :-1, 0] = self.cell_material[:, :, :, 2]
-        self.sigma_e[:-1, :-1, :-1, 1] = self.cell_material[:, :, :, 2]
-        self.sigma_e[:-1, :-1, :-1, 2] = self.cell_material[:, :, :, 2]
-        self.sigma_m[:-1, :-1, :-1, 0] = self.cell_material[:, :, :, 3]
-        self.sigma_m[:-1, :-1, :-1, 1] = self.cell_material[:, :, :, 3]
-        self.sigma_m[:-1, :-1, :-1, 2] = self.cell_material[:, :, :, 3]
+        self.eps_r[:, :, :, :] = self.cell_material[:, :, :, 0, None]
+        self.mu_r[:, :, :, :] = self.cell_material[:, :, :, 1, None]
+        self.sigma_e[:, :, :, :] = self.cell_material[:, :, :, 2, None]
+        self.sigma_m[:, :, :, :] = self.cell_material[:, :, :, 3, None]
 
     def _calculate_material_components(self):
         cel_m = self.cell_material
@@ -232,9 +231,21 @@ class Grid:
         """Return time passed since the start of the simulation."""
         return self.current_time_step * self.dt
 
-    def run(self, n_steps: int = 1000, total_time: Optional[float] = None):
-        """Run simulation."""
-        self._prepare()
+    def _prepare(self):
+        """Prepare grid, add objects, sources, ..."""
+        logger.info("Preparing objects, sources, lumped elements, ...")
+        for obj in self.objects:
+            obj.attach_to_grid()
+
+        for bc in self.boundaries:
+            bc.attach_to_grid()
+
+        self._calculate_material_components_simple()
+
+        for obj in self.objects:
+            if isinstance(obj, Brick):
+                obj.attach_to_grid_zero_thinkness()
+
         self._initialize_updating_coefficients()
 
         for source in self.sources:
@@ -246,37 +257,47 @@ class Grid:
         for det in self.detectors:
             det.attach_to_grid()
 
-        self.n_steps = n_steps if not total_time else floor(total_time /
-                                                            self.dt)
+    def run(self, n_steps: int = 1000, total_time: Optional[float] = None):
+        """Run simulation."""
 
-        logger.info(f"Running simulation with {self.n_steps} steps")
+        if not total_time:
+            self.n_steps = n_steps
+        else:
+            self.n_steps = floor(total_time / self.dt)
 
-        for _ in range(0, self.n_steps):
+        logger.info(f"Preparing sources, objects, detectors...")
+        self._prepare()
+
+        logger.info(f"Running simulation with {self.n_steps} steps...")
+
+        for _ in tqdm(range(self.n_steps)):
             self.step()
 
+        logger.info(f"Processing results...")
+        self._results()
+
+    def _results(self):
         for det in self.detectors:
             det.plot()
 
     def step(self):
         """Run a single step of the simulation."""
         self.update_H()
-        self.update_E()
-        self.update_detectors()
-        self.current_time_step += 1
+        for bc in self.boundaries:
+            bc.update_H()
 
-    def update_detectors(self):
-        """Update detectors."""
+        self.update_E()
+        for bc in self.boundaries:
+            bc.update_E()
+
         for det in self.detectors:
             det.update()
-
-    def update_elements(self):
-        """Update elements."""
-        pass
+        self.current_time_step += 1
 
     def update_E(self):
         """Update E Field."""
         self.current_time += self.dt / 2
-        dx, dy, dz = self.grid_spacing
+        dx, dy, dz = self.spacing
         self.E *= self.c_ee
         self.E += self.c_eh * curl_H(self.H, dx, dy, dz)
 
@@ -286,14 +307,15 @@ class Grid:
     def update_H(self):
         """Update H Field."""
         self.current_time += self.dt / 2
-        dx, dy, dz = self.grid_spacing
+        dx, dy, dz = self.spacing
         self.H *= self.c_hh
         self.H += self.c_he * curl_E(self.E, dx, dy, dz)
 
         for src in self.sources:
             src.update_H()
 
-    def add(self, elm: Union[Object, Source, LumpedElement, Detector]):
+    def add(self, elm: Union[Object, Source, LumpedElement, Detector,
+                             Boundary]):
         """Add element to grid."""
         elm._register_grid(self)
         if isinstance(elm, Object):
@@ -304,17 +326,8 @@ class Grid:
             self.lumped_elements.append(elm)
         elif isinstance(elm, Detector):
             self.detectors.append(elm)
-
-    def _prepare(self):
-        """Prepare grid, add objects, sources, ..."""
-        logger.info("Preparing objects, sources, lumped elements, ...")
-        for obj in self.objects:
-            obj.attach_to_grid()
-
-        self._calculate_material_components_simple()
-        for obj in self.objects:
-            if isinstance(obj, Brick):
-                obj.attach_to_grid_zero_thinkness()
+        elif isinstance(elm, Boundary):
+            self.boundaries.append(elm)
 
     def plot_planes(self) -> None:
         """Plot material."""
@@ -358,13 +371,13 @@ class Grid:
         X, Y, Z = np.meshgrid(self._x, self._y, self._z)
         mask = self.eps_r[:, :, :, 1] > 1
         x, y, z = np.nonzero(mask)
-        ax.scatter(x * self.grid_spacing[0], y * self.grid_spacing[1],
-                   z * self.grid_spacing[2])
+        ax.scatter(x * self.spacing[0], y * self.spacing[1],
+                   z * self.spacing[2])
 
         ax.grid(True)
-        ax.set_xlim([0, self.Nx * self.grid_spacing[0]])
-        ax.set_ylim([0, self.Ny * self.grid_spacing[1]])
-        ax.set_zlim([0, self.Nz * self.grid_spacing[2]])
+        ax.set_xlim([0, self.Nx * self.spacing[0]])
+        ax.set_ylim([0, self.Ny * self.spacing[1]])
+        ax.set_zlim([0, self.Nz * self.spacing[2]])
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
@@ -380,9 +393,9 @@ class Grid:
         ax.scatter(X[mask], Y[mask], Z[mask])
 
         ax.grid(True)
-        ax.set_xlim([0, self.Nx * self.grid_spacing[0]])
-        ax.set_ylim([0, self.Ny * self.grid_spacing[1]])
-        ax.set_zlim([0, self.Nz * self.grid_spacing[2]])
+        ax.set_xlim([0, self.Nx * self.spacing[0]])
+        ax.set_ylim([0, self.Ny * self.spacing[1]])
+        ax.set_zlim([0, self.Nz * self.spacing[2]])
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
@@ -398,9 +411,9 @@ class Grid:
         ax.scatter(X[mask], Y[mask], Z[mask])
 
         ax.grid(True)
-        ax.set_xlim([0, self.Nx * self.grid_spacing[0]])
-        ax.set_ylim([0, self.Ny * self.grid_spacing[1]])
-        ax.set_zlim([0, self.Nz * self.grid_spacing[2]])
+        ax.set_xlim([0, self.Nx * self.spacing[0]])
+        ax.set_ylim([0, self.Ny * self.spacing[1]])
+        ax.set_zlim([0, self.Nz * self.spacing[2]])
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
