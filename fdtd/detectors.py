@@ -5,10 +5,8 @@ import logging
 from functools import partial
 from typing import Optional
 
-import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import cm
 
 from .bases import FDTDElementBase
 from .utils import Direction
@@ -46,19 +44,15 @@ class Detector(FDTDElementBase):
 
     def update(self):
         """Update detectors."""
-        pass
 
     def attach_to_grid(self):
         """Attach object to grid."""
-        pass
 
     def plot_3d(self, ax, alpha=0.5):
         """Plot a source and attach to an axis."""
-        pass
 
     def plot(self):
         """Plot."""
-        pass
 
 
 class VoltageDetector(Detector):

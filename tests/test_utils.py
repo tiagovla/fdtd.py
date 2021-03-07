@@ -6,18 +6,21 @@ from fdtd.utils import BoundingBox, Direction, curl_H
 
 
 def test_direction():
+    """Test definition of the Direction enum."""
     assert Direction.X.value == 0
     assert Direction.Y.value == 1
     assert Direction.Z.value == 2
 
 
 def test_bounding_box_constructor():
+    """Test bounding box constructor."""
     bb = BoundingBox(x_min=0, y_min=0, z_min=0, x_max=2, y_max=3, z_max=4)
     assert bb.x_min == 0 and bb.y_min == 0 and bb.z_min == 0
     assert bb.x_max == 2 and bb.y_max == 3 and bb.z_max == 4
 
 
 def test_bounding_box_constraints():
+    """Test bounding box constraints."""
     with pytest.raises(WrongBounding):
         assert BoundingBox(x_min=2,
                            y_min=0,
@@ -28,7 +31,7 @@ def test_bounding_box_constraints():
 
 
 def test_curl_H_3d():
-
+    """Test the curl of H for the 3D case."""
     # Nx, Ny, Nz = 3, 3, 3
     # dx, dy, dz = 1, 2, 4
     H = np.array([
@@ -141,6 +144,7 @@ def test_curl_H_3d():
 
 
 def test_curl_H_2d():
+    """Test the curl of H for the 2D case."""
     H = np.array([
         [
             [0.13282649, 0.32839534, 0.24364603],

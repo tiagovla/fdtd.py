@@ -34,7 +34,6 @@ class FDTDElementBase(ABC):
 
     def attach_to_grid(self):
         """Attach object to grid."""
-        pass
 
     def detach_from_grid(self):
         """Detach from grid."""

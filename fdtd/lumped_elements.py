@@ -43,7 +43,6 @@ class LumpedElement(FDTDElementBase):
 
     def attach_to_grid(self):
         """Attach object to grid."""
-        pass
 
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""

@@ -11,17 +11,17 @@ class MaterialMeta(type):
     """Material metaclass."""
 
     @property
-    def all(self) -> List["Material"]:
+    def all(cls) -> List["Material"]:
         """Return list of all materials registered."""
-        return list(self.__dict__["__materials__"])
+        return list(cls.__dict__["__materials__"])
 
     def __prepare__(cls, name):
         """Implement prepare function."""
         return {"__materials__": set()}
 
-    def __getitem__(self, name: str):
+    def __getitem__(cls, name: str):
         """Return a material given a name."""
-        for material in self.__dict__["__materials__"]:
+        for material in cls.__dict__["__materials__"]:
             if name == material.name:
                 return material
         raise MaterialNotFound(f"Material {name} not found.")

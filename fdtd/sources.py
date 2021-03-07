@@ -71,11 +71,9 @@ class Source(FDTDElementBase):
 
     def update_E(self):
         """Update E fields."""
-        pass
 
     def update_H(self):
         """Update H fields."""
-        pass
 
     def __repr__(self):
         """Dev. string representation."""
@@ -86,7 +84,6 @@ class Source(FDTDElementBase):
 
     def plot_3d(self, ax, alpha=0.5):
         """Plot a source and attach to an axis."""
-        pass
 
 
 class ImpressedMagneticCurrentSource(Source):
@@ -340,5 +337,3 @@ class VoltageSource(Source):
 
 class CurrentSource(Source):
     """Implement a current source."""
-
-    pass

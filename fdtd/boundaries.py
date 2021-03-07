@@ -12,15 +12,12 @@ class Boundary(FDTDElementBase):
 
     def update_E(self):
         """Update E field."""
-        pass
 
     def update_H(self):
         """Update H field."""
-        pass
 
     def attach_to_grid(self):
         """Attach object to grid."""
-        pass
 
 
 class PeriodicBoundary(Boundary):

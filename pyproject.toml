@@ -3,7 +3,7 @@ name = "fdtd.py"
 version = "0.0.1"
 description = ""
 authors = ["Tiago Vilela <tiagovla@gmail.com>"]
-
+license = "MIT"
 packages = [
     {include = "fdtd", from="."}
 ]

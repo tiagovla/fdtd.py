@@ -189,7 +189,6 @@ class Grid:
     # TODO: Add center so the domain.
     def average_parameters(self):
         """Average the surrounding parameters."""
-        pass
 
     @property
     def x_min(self) -> float:
@@ -259,21 +258,20 @@ class Grid:
 
     def run(self, n_steps: int = 1000, total_time: Optional[float] = None):
         """Run simulation."""
-
         if not total_time:
             self.n_steps = n_steps
         else:
             self.n_steps = floor(total_time / self.dt)
 
-        logger.info(f"Preparing sources, objects, detectors...")
+        logger.info("Preparing sources, objects, detectors...")
         self._prepare()
 
-        logger.info(f"Running simulation with {self.n_steps} steps...")
+        logger.info("Running simulation with {self.n_steps} steps...")
 
         for _ in tqdm(range(self.n_steps)):
             self.step()
 
-        logger.info(f"Processing results...")
+        logger.info("Processing results...")
         self._results()
 
     def _results(self):

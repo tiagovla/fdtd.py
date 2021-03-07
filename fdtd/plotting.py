@@ -13,4 +13,3 @@ from .grid import Grid
 
 def visualize_grid(grid: Grid):
     """Visualize grid."""
-    pass

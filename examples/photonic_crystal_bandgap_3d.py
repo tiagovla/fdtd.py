@@ -1,13 +1,9 @@
 """Implements a 3d bandgap calculation."""
-import os
-
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-
 import concurrent.futures
 import copy
 import itertools
 import logging
+import os
 import random
 from logging.config import fileConfig
 
@@ -30,8 +26,8 @@ logger = logging.getLogger("fdtd")
 # geometry
 a = 1e-6
 w = 0.2 * a
-n_steps = 10000
-n_points = 40
+n_steps = 20000
+n_points = 50
 
 # Define the symmetry points
 G = SPoint((0, 0, 0), "Γ")
@@ -107,7 +103,7 @@ for e_detector in e_detectors:
     grid.add(e_detector)
 grid.add(p_boundary)
 
-# print("Running simulation...")
+print("Running simulation...")
 
 
 def simulation(beta):
@@ -134,8 +130,8 @@ ax.set_xticklabels(bz_path.symmetry_names)
 ax.set_xticks(bz_path.symmetry_locations)
 ax.set_xlim(0, bz_path.symmetry_locations[-1])
 ax.set_ylim(0, 2)
-ax.set_xlabel("Bloch Wave Vector $\\beta$")
-ax.set_ylabel("Frequency $\\frac{a \\omega}{2\\pi c}$")
+ax.set_xlabel(r"Bloch Wave Vector $\beta$")
+ax.set_ylabel(r"Frequency $\frac{\omega a}{2\pi c}$")
 ax.grid(True)
 
 with concurrent.futures.ProcessPoolExecutor(
@@ -143,76 +139,7 @@ with concurrent.futures.ProcessPoolExecutor(
     for beta_len, fs in zip(betas_len, executor.map(simulation, betas)):
         print(beta_len, fs)
         ax.scatter(beta_len * (1 + 0*fs), fs * a / C)
+        fig.savefig("result.png")
+        fig.savefig("result.svg")
 
-fig.savefig("result.png")
 plt.show()
-
-# idx = 0
-# fig, ax = plt.subplots()
-# for bx, by, bz in zip(b_x, b_y, b_z):
-#     p_boundary.b_vec = (bx, by, bz)
-#     grid.reset()
-#     grid.run(n_steps=n_steps)
-
-#     print("Showing results...")
-#     psd = np.zeros((n_steps // 2, ))
-#     for e_detector in e_detectors:
-#         e_detector.pos_processing()
-#         psd += np.abs(e_detector.values_freq)**2
-
-#     peaks, _ = find_peaks(np.abs(psd), threshold=1e-22)
-
-#     ax.scatter(idx * np.ones(psd[peaks].shape),
-#                e_detectors[0].freq[peaks] / 1e12)
-#     ax.set_ylim([0, 1000])
-#     ax.set_xlim([0, frames])
-#     # plt.draw()
-#     # plt.pause(0.001)
-#     idx += 1
-
-#     # fig, ax = plt.subplots()
-#     # ax.plot(e_detectors[0].time, np.abs(e_detectors[0].values_time))
-
-#     # fig, ax = plt.subplots()
-#     # ax.plot(e_detectors[0].freq / 1e12, psd)
-#     # ax.set_xlim([0, 1200])
-#     # ax.scatter(e_detectors[0].freq[peaks] / 1e12, psd[peaks])
-
-#     # plt.show()
-#     fig.savefig("result.png")
-
-# #     # X, Y = np.meshgrid(np.linspace(0, 0.5, frames), e_detector.freq / 1e12)
-# #     # print("shapes")
-# #     # print(X.shape)
-# #     # print(history_freq.shape)
-
-# #     # fig, ax = plt.subplots()
-# #     # ax.pcolormesh(X, Y, np.abs(history_freq), cmap="RdBu")
-# #     # ax.set_ylim([0, 500])
-# #     # plt.show()
-
-# #     # fig = plt.figure()
-# #     # # ax = fig.add_subplot(111, projection="3d")
-# #     # ax = fig.add_subplot(111)
-# #     # ax.scatter(X, Y, c=np.abs(history_freq))
-# #     # ax.set_ylim([0, 500])
-
-# #     # fig, axs = plt.subplots(3)
-# #     # axs[0].plot(e_detector.time, np.abs(e_detector.values_time))
-# #     # axs[0].set(xlabel="time (s)", ylabel="|E_z|(V/m)")
-# #     # axs[1].plot(e_detector.freq / 1e12, np.abs(e_detector.values_freq))
-# #     # axs[1].set(xlabel="frequency (THz)", ylabel="F(E_z)")
-# #     # axs[1].set_xlim([0, 500])
-# #     # axs[2].plot(e_detector.freq / 1e12, np.angle(e_detector.values_freq))
-# #     # axs[2].set(xlabel="frequency (THz)", ylabel="F(E_z)")
-# #     # axs[2].set_xlim([0, 500])
-
-# #     # peaks, _ = find_peaks(np.abs(e_detector.values_freq), threshold=1e-10)
-# #     # axs[1].scatter(e_detector.freq[peaks] / 1e12,
-# #     #                abs(e_detector.values_freq[peaks]))
-# #     # print(peaks)
-# # plt.ioff()
-# # plt.show()
-
-# # # # plot results
-# # # # print(e_detector.captured)
