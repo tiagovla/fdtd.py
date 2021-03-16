@@ -1,6 +1,6 @@
+import copy
 import logging
 import random
-import sys
 from logging.config import fileConfig
 
 import matplotlib.pyplot as plt
@@ -23,7 +23,8 @@ print("Loading materials...")
 Material.load("materials.json")
 
 print("Creating grid...")
-grid = Grid(shape=(64, 64, 1), spacing=(1/64) * 1e-6)
+grid_tm = Grid(shape=(64, 64, 1), spacing=(1/64) * 1e-6)
+grid_te = Grid(shape=(64, 64, 1), spacing=(1/64) * 1e-6)
 
 print("Creating components...")
 
@@ -54,30 +55,33 @@ for _ in range(5):
     h_detector = HFieldDetector(*point, *point)
     h_detectors.append(h_detector)
 
-p_boundary = PeriodicBlochBoundary(b_vec=(0, 0, 0),
-                                   x_direction=True,
-                                   y_direction=True)
+p_boundary_tm = PeriodicBlochBoundary(x_direction=True, y_direction=True)
+p_boundary_te = copy.deepcopy(p_boundary_tm)
 
 diel_mat = Material(name="diel", eps_r=8.9)
 
-sphere = Sphere(*(0.5e-6, 0.5e-6, 0), radius=0.2e-6, material=diel_mat)
+sphere_tm = Sphere(*(0.5e-6, 0.5e-6, 0), radius=0.2e-6, material=diel_mat)
+sphere_te = copy.deepcopy(sphere_tm)
 
 print("Adding components to grid...")
 
-grid.add(sphere)
+grid_tm.add(sphere_tm)
+grid_tm.add(p_boundary_tm)
+for j_source in j_sources:
+    grid_tm.add(j_source)
+for e_detector in e_detectors:
+    grid_tm.add(e_detector)
+
+grid_te.add(sphere_te)
+grid_te.add(p_boundary_te)
 for m_source in m_sources:
-    grid.add(m_source)
+    grid_te.add(m_source)
 for h_detector in h_detectors:
-    grid.add(h_detector)
-# for j_source in j_sources:
-#     grid.add(j_source)
-# for e_detector in e_detectors:
-#     grid.add(e_detector)
-grid.add(p_boundary)
+    grid_te.add(h_detector)
 
 print("Running simulation...")
 
-n_steps = 15000
+n_steps = 20000
 frames = 10
 a = 1e-6
 
@@ -90,22 +94,46 @@ bz_path = BZPath([G, X, M, G], t1, t2, n_points=50)
 betas = [bz_path.beta_vec[:, col] for col in range(bz_path.beta_vec.shape[1])]
 betas_len = bz_path.beta_vec_len
 
-fig, ax = plt.subplots()
+plt.style.use("seaborn-ticks")
+fig, ax = plt.subplots(figsize=(5, 4))
 ax.set_xticklabels(bz_path.symmetry_names)
 ax.set_xticks(bz_path.symmetry_locations)
 ax.set_xlim(0, bz_path.symmetry_locations[-1])
-ax.set_ylim(0, 2)
-ax.set_xlabel("Bloch Wave Vector $\\beta$")
-ax.set_ylabel("Frequency $\\frac{a \\omega}{2\\pi c}$")
+ax.set_ylim(0, 0.8)
+ax.set_xlabel(r"Bloch Wave Vector $\beta$")
+ax.set_ylabel(r"Frequency $\omega a/2\pi c}$")
 ax.grid(True)
 fig.tight_layout()
 plt.ion()
 plt.show()
 
 for beta, beta_len in zip(betas, betas_len):
-    p_boundary.b_vec = (beta[0], beta[1], 0)
-    grid.reset()
-    grid.run(n_steps=n_steps)
+    p_boundary_tm.b_vec = (beta[0], beta[1], 0)
+    grid_tm.reset()
+    grid_tm.run(n_steps=n_steps)
+
+    print("Showing results...")
+    psd = np.zeros((n_steps // 2, ))
+    for e_detector in e_detectors:
+        e_detector.pos_processing()
+        psd += np.abs(e_detector.values_freq)**2
+
+    peaks, _ = find_peaks(np.abs(psd), threshold=1e-30)
+    fs = e_detectors[0].freq[peaks]
+
+    ax.scatter(beta_len * (1 + 0*fs),
+               fs * a / C,
+               color="b",
+               marker=".",
+               label="TM")
+
+    plt.draw()
+    plt.pause(0.001)
+
+for beta, beta_len in zip(betas, betas_len):
+    p_boundary_te.b_vec = (beta[0], beta[1], 0)
+    grid_te.reset()
+    grid_te.run(n_steps=n_steps)
 
     print("Showing results...")
     psd = np.zeros((n_steps // 2, ))
@@ -113,32 +141,22 @@ for beta, beta_len in zip(betas, betas_len):
         h_detector.pos_processing()
         psd += np.abs(h_detector.values_freq)**2
 
-    peaks, _ = find_peaks(np.abs(psd), threshold=1e-25)
+    peaks, _ = find_peaks(np.abs(psd), threshold=1e-30)
     fs = h_detectors[0].freq[peaks]
 
-    ax.scatter(beta_len * (1 + 0*fs), fs * a / C, color="r", marker=".")
+    ax.scatter(beta_len * (1 + 0*fs),
+               fs * a / C,
+               color="r",
+               marker=".",
+               label="TE")
 
     plt.draw()
     plt.pause(0.001)
 
-# for beta, beta_len in zip(betas, betas_len):
-#     p_boundary.b_vec = (beta[0], beta[1], 0)
-#     grid.reset()
-#     grid.run(n_steps=n_steps)
-
-#     print("Showing results...")
-#     psd = np.zeros((n_steps // 2, ))
-#     for e_detector in e_detectors:
-#         e_detector.pos_processing()
-#         psd += np.abs(e_detector.values_freq)**2
-
-#     peaks, _ = find_peaks(np.abs(psd), threshold=1e-22)
-#     fs = e_detectors[0].freq[peaks]
-
-#     ax.scatter(beta_len * (1 + 0*fs), fs * a / C, color="b", marker=".")
-
-#     plt.draw()
-#     plt.pause(0.001)
+handles, labels = ax.get_legend_handles_labels()
+labels, ids = np.unique(labels, return_index=True)
+handles = [handles[i] for i in ids]
+plt.legend(handles, labels, loc="best")
 
 plt.ioff()
 plt.show()

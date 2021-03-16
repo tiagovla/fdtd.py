@@ -118,20 +118,22 @@ def simulation(beta):
         e_detector.pos_processing()
         psd += np.abs(e_detector.values_freq)**2
 
-    peaks, _ = find_peaks(np.abs(psd), threshold=1e-22)
+    peaks, _ = find_peaks(np.abs(psd), threshold=1e-25)
     return sim_grid.detectors[0].freq[peaks]
 
 
 betas = [bz_path.beta_vec[:, col] for col in range(bz_path.beta_vec.shape[1])]
 betas_len = bz_path.beta_vec_len
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(5, 4))
+plt.style.use("seaborn-ticks")
 ax.set_xticklabels(bz_path.symmetry_names)
 ax.set_xticks(bz_path.symmetry_locations)
 ax.set_xlim(0, bz_path.symmetry_locations[-1])
-ax.set_ylim(0, 2)
+ax.set_ylim(0, 1.6)
 ax.set_xlabel(r"Bloch Wave Vector $\beta$")
-ax.set_ylabel(r"Frequency $\frac{\omega a}{2\pi c}$")
+ax.set_ylabel(r"Frequency ${\omega a}/{2\pi c}$")
+plt.tight_layout()
 ax.grid(True)
 
 with concurrent.futures.ProcessPoolExecutor(
