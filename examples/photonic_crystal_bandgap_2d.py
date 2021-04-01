@@ -94,7 +94,6 @@ bz_path = BZPath([G, X, M, G], t1, t2, n_points=50)
 betas = [bz_path.beta_vec[:, col] for col in range(bz_path.beta_vec.shape[1])]
 betas_len = bz_path.beta_vec_len
 
-plt.style.use("seaborn-ticks")
 fig, ax = plt.subplots(figsize=(5, 4))
 ax.set_xticklabels(bz_path.symmetry_names)
 ax.set_xticks(bz_path.symmetry_locations)

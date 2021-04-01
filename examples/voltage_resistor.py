@@ -3,7 +3,8 @@
 import logging
 from logging.config import fileConfig
 
-from fdtd import Brick, Grid, Material, Resistor, VoltageDetector, VoltageSource
+from fdtd import (Brick, Grid, Material, Resistor, VoltageDetector,
+                  VoltageSource)
 
 # Setting up logger
 fileConfig("logging_config.ini")
