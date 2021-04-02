@@ -5,15 +5,16 @@ from logging.config import fileConfig
 
 import matplotlib.pyplot as plt
 import numpy as np
+from morpho import BrillouinZonePath as BZPath
+from morpho import SymmetryPoint as SPoint
+from scipy.signal import find_peaks
+
 from fdtd import EFieldDetector, Grid, HFieldDetector, Material
 from fdtd.boundaries import PeriodicBlochBoundary
 from fdtd.constants import SPEED_LIGHT as C
 from fdtd.objects import Sphere
 from fdtd.sources import ImpressedElectricCurrentSource as JSource
 from fdtd.sources import ImpressedMagneticCurrentSource as MSource
-from morpho import BrillouinZonePath as BZPath
-from morpho import SymmetryPoint as SPoint
-from scipy.signal import find_peaks
 
 # Setting up logger
 # fileConfig("logging_config.ini")
