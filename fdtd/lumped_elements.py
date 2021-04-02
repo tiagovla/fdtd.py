@@ -15,7 +15,27 @@ logger = logging.getLogger(__name__)
 
 
 class LumpedElement(FDTDElementBase):
-    """A lumped element to be placed in the grid."""
+    """Base class for all lumped elements.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing the lumped element.
+    y_min : float
+        Minimum y coordinate of the bounding box containing the lumped element.
+    z_min : float
+        Minimum z coordinate of the bounding box containing the lumped element.
+    x_max : float
+        Maximum x coordinate of the bounding box containing the lumped element.
+    y_max : float
+        Maximum y coordinate of the bounding box containing the lumped element.
+    z_max : float
+        Maximum z coordinate of the bounding box containing the lumped element.
+    name : Optional[str]
+        Name of the lumped element.
+    direction : Direction
+        Direction of the lumped element.
+    """
 
     def __init__(
         self,
@@ -37,12 +57,14 @@ class LumpedElement(FDTDElementBase):
         self.y_max = y_max
         self.z_max = z_max
         self.name = name if name else self._create_new_name()
+        self.direction = direction
+
         self.bounding_box = BoundingBox(x_min, x_max, y_min, y_max, z_min,
                                         z_max)
-        self.direction = direction
 
     def attach_to_grid(self):
         """Attach object to grid."""
+        raise NotImplemented
 
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""
@@ -62,7 +84,25 @@ class LumpedElement(FDTDElementBase):
 
 
 class Resistor(LumpedElement):
-    """Implement a resistor element."""
+    """Model of a resistor element.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing the resistor.
+    y_min : float
+        Minimum y coordinate of the bounding box containing the resistor.
+    z_min : float
+        Minimum z coordinate of the bounding box containing the resistor.
+    x_max : float
+        Maximum x coordinate of the bounding box containing the resistor.
+    y_max : float
+        Maximum y coordinate of the bounding box containing the resistor.
+    z_max : float
+        Maximum z coordinate of the bounding box containing the resistor.
+    resistance : float
+        Internal resistance of the resistor.
+    """
 
     def __init__(
         self,
@@ -98,51 +138,76 @@ class Resistor(LumpedElement):
             np.argmin(np.abs(self.grid._z - self.z_max)),
         )
 
-        dx, dy, dz = self.grid.grid_spacing
+        dx, dy, dz = self.grid.spacing
         dt = self.grid.dt
-        Rs = self.resistance
-        term = (dt*dz) / (Rs*dx*dy)
+        r_s = self.resistance
+        term = (dt*dz) / (r_s*dx*dy)
 
         if self.direction == Direction.X:
-            I = slice(self.idx_s[0], self.idx_e[0])
-            J = slice(self.idx_s[1], self.idx_e[1] + 1)
-            K = slice(self.idx_s[2], self.idx_e[2] + 1)
+            i_s = slice(self.idx_s[0], self.idx_e[0])
+            j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+            k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
 
-            eps = self.grid.eps_r[I, J, K, 0] * EPS_0
-            sigma_e = self.grid.sigma_e[I, J, K, 0]
+            eps = self.grid.eps_r[i_s, j_s, k_s, 0] * EPS_0
+            sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 0]
 
-            self.grid.c_ee[I, J, K, 0] = (2*eps - dt*sigma_e -
-                                          term) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[I, J, K, 1] = (2*dt) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[I, J, K, 2] = self.grid.c_eh[I, J, K, 1]
+            self.grid.c_ee[i_s, j_s, k_s, 0] = \
+                    (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
+            self.grid.c_eh[i_s, j_s, k_s, 1] = \
+                    (2*dt) / (2*eps + dt*sigma_e + term)
+            self.grid.c_eh[i_s, j_s, k_s, 2] = self.grid.c_eh[i_s, j_s, k_s, 1]
 
         elif self.direction == Direction.Y:
-            I = slice(self.idx_s[0], self.idx_e[0])
-            J = slice(self.idx_s[1], self.idx_e[1] + 1)
-            K = slice(self.idx_s[2], self.idx_e[2] + 1)
+            i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
+            j_s = slice(self.idx_s[1], self.idx_e[1])
+            k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
 
-            eps = self.grid.eps_r[I, J, K, 1] * EPS_0
-            sigma_e = self.grid.sigma_e[I, J, K, 1]
+            eps = self.grid.eps_r[i_s, j_s, k_s, 1] * EPS_0
+            sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 1]
 
-            self.grid.c_ee[I, J, K, 1] = (2*eps - dt*sigma_e -
-                                          term) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[I, J, K, 0] = (2*dt) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[I, J, K, 2] = self.grid.c_eh[I, J, K, 1]
+            self.grid.c_ee[i_s, j_s, k_s, 1] = \
+                    (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
+            self.grid.c_eh[i_s, j_s, k_s, 0] = \
+                    (2*dt) / (2*eps + dt*sigma_e + term)
+            self.grid.c_eh[i_s, j_s, k_s, 2] = self.grid.c_eh[i_s, j_s, k_s, 0]
 
         else:
-            I = slice(self.idx_s[0], self.idx_e[0] + 1)
-            J = slice(self.idx_s[1], self.idx_e[1] + 1)
-            K = slice(self.idx_s[2], self.idx_e[2])
-            eps = self.grid.eps_r[I, J, K, 2] * EPS_0
-            sigma_e = self.grid.sigma_e[I, J, K, 2]
+            i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
+            j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+            k_s = slice(self.idx_s[2], self.idx_e[2])
 
-            self.grid.c_ee[I, J, K, 2] = (2*eps - dt*sigma_e -
-                                          term) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[I, J, K, 2] = (2*dt) / (2*eps + dt*sigma_e + term)
+            eps = self.grid.eps_r[i_s, j_s, k_s, 2] * EPS_0
+            sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 2]
+
+            self.grid.c_ee[i_s, j_s, k_s, 2] = \
+                    (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
+            self.grid.c_eh[i_s, j_s, k_s, 1] = \
+                    (2*dt) / (2*eps + dt*sigma_e + term)
+            self.grid.c_eh[i_s, j_s, k_s, 0] = self.grid.c_eh[i_s, j_s, k_s, 1]
 
 
 class Capacitor(LumpedElement):
-    """Implement a capacitor element."""
+    """Model of a capacitor element.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing the capacitor.
+    y_min : float
+        Minimum y coordinate of the bounding box containing the capacitor.
+    z_min : float
+        Minimum z coordinate of the bounding box containing the capacitor.
+    x_max : float
+        Maximum x coordinate of the bounding box containing the capacitor.
+    y_max : float
+        Maximum y coordinate of the bounding box containing the capacitor.
+    z_max : float
+        Maximum z coordinate of the bounding box containing the capacitor.
+    resistance : float
+        Internal resistance of the capacitor.
+    capacitance : float
+        Internal capacitance of the capacitor.
+    """
 
     def __init__(
         self,
@@ -153,6 +218,7 @@ class Capacitor(LumpedElement):
         y_max: float,
         z_max: float,
         resistance: float = 50,
+        capacitance: float = 1e-9,
     ):
         """Initialize the object."""
         self.x_min = x_min
@@ -162,21 +228,41 @@ class Capacitor(LumpedElement):
         self.y_max = y_max
         self.z_max = z_max
         self.resistance = resistance
+        self.capacitance = capacitance
 
 
 class Inductor(LumpedElement):
-    """Implement a inductor element."""
+    """Model of a inductor element.
 
-    def __init__(
-        self,
-        x_min: float,
-        y_min: float,
-        z_min: float,
-        x_max: float,
-        y_max: float,
-        z_max: float,
-        resistance: float = 50,
-    ):
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing the inductor.
+    y_min : float
+        Minimum y coordinate of the bounding box containing the inductor.
+    z_min : float
+        Minimum z coordinate of the bounding box containing the inductor.
+    x_max : float
+        Maximum x coordinate of the bounding box containing the inductor.
+    y_max : float
+        Maximum y coordinate of the bounding box containing the inductor.
+    z_max : float
+        Maximum z coordinate of the bounding box containing the inductor.
+    resistance : float
+        Internal resistance of the inductor.
+    capacitance : float
+        Internal inductance of the inductor.
+    """
+
+    def __init__(self,
+                 x_min: float,
+                 y_min: float,
+                 z_min: float,
+                 x_max: float,
+                 y_max: float,
+                 z_max: float,
+                 resistance: float = 50,
+                 inductance: float = 1e-6):
         """Initialize the object."""
         self.x_min = x_min
         self.y_min = y_min
@@ -185,6 +271,7 @@ class Inductor(LumpedElement):
         self.y_max = y_max
         self.z_max = z_max
         self.resistance = resistance
+        self.inductance = inductance
 
 
 class Diode(LumpedElement):
