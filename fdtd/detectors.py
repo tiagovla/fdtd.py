@@ -205,11 +205,12 @@ class HFieldDetector(Detector):
         )
         self.size = (e[0] - s[0] + 1, e[1] - s[1] + 1, e[2] - s[2] + 1)
 
-        self.I = slice(self.idx_s[0], self.idx_e[0] + 1)
-        self.J = slice(self.idx_s[1], self.idx_e[1] + 1)
-        self.K = slice(self.idx_s[2], self.idx_e[2] + 1)
+        self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
+        self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+        self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
         logger.debug(
-            f"EFieldDetector attached to {self.I}, {self.J} and {self.K}")
+            f"EFieldDetector attached to {self.i_s}, {self.j_s} and {self.k_s}"
+        )
 
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""
@@ -252,7 +253,7 @@ class HFieldDetector(Detector):
         """Capture H Field."""
         try:
             self.captured[:, :, :, self.grid.current_time_step] = self.grid.H[
-                self.I, self.J, self.K, self.direction.value]
+                self.i_s, self.j_s, self.k_s, self.direction.value]
         except TypeError:
             size = self.size + (self.grid.n_steps, )
             self.captured = np.zeros_like(self.grid.H, shape=size)
@@ -296,11 +297,12 @@ class EFieldDetector(Detector):
         )
         self.size = (e[0] - s[0] + 1, e[1] - s[1] + 1, e[2] - s[2] + 1)
 
-        self.I = slice(self.idx_s[0], self.idx_e[0] + 1)
-        self.J = slice(self.idx_s[1], self.idx_e[1] + 1)
-        self.K = slice(self.idx_s[2], self.idx_e[2] + 1)
+        self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
+        self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+        self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
         logger.debug(
-            f"EFieldDetector attached to {self.I}, {self.J} and {self.K}")
+            f"EFieldDetector attached to {self.i_s}, {self.j_s} and {self.k_s}"
+        )
 
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""
@@ -342,7 +344,7 @@ class EFieldDetector(Detector):
         """Capture E Field."""
         try:
             self.captured[:, :, :, self.grid.current_time_step] = self.grid.E[
-                self.I, self.J, self.K, self.direction.value]
+                self.i_s, self.j_s, self.k_s, self.direction.value]
         except TypeError:
             size = self.size + (self.grid.n_steps, )
             self.captured = np.zeros_like(self.grid.E, shape=size)

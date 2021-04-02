@@ -14,6 +14,7 @@ class Waveform(ABC):
         """Waveform function."""
 
         def wrap(time):
+            """Wrap function."""
             return 0 * time
 
         return wrap
@@ -65,6 +66,7 @@ class SineWaveform(Waveform):
         """Return a gaussian waveform function."""
 
         def wrap(time: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
+            "Wrap function."
             return self.amp * np.sin(2 * np.pi * self.freq * time +
                                      self.offset)
 

@@ -66,6 +66,7 @@ class Material(metaclass=MaterialMeta):
         self._register(self)
 
     def _register(self, material: Material) -> None:
+        """Register material."""
         materials_set = self.__class__.__dict__["__materials__"]
         if material not in materials_set:
             materials_set.add(material)
@@ -73,6 +74,7 @@ class Material(metaclass=MaterialMeta):
             raise MaterialExists(f"Material {material.name} already exists.")
 
     def _unregister(self, material):
+        """Unregister material."""
         materials_set = self.__class__.__dict__["__materials__"]
         materials_set.discard(material)
 

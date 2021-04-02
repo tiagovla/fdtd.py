@@ -185,7 +185,6 @@ class Grid:
             (cel_m[:, :, 1:, 3] + cel_m[:, :, :-1, 3])
         # yapf: enable
 
-    # TODO: Add center so the domain.
     def average_parameters(self):
         """Average the surrounding parameters."""
 

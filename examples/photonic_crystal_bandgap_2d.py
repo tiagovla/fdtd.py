@@ -57,6 +57,7 @@ for _ in range(5):
     h_detectors.append(h_detector)
 
 p_boundary_tm = PeriodicBlochBoundary(x_direction=True, y_direction=True)
+
 p_boundary_te = copy.deepcopy(p_boundary_tm)
 
 diel_mat = Material(name="diel", eps_r=8.9)
