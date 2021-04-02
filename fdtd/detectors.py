@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from functools import partial
-from typing import Optional
+from typing import Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -62,6 +62,12 @@ class Detector(FDTDElementBase):
         self.captured: Optional[np.ndarray] = None
         self._plot = plot
 
+        self.i_s: Optional[slice] = None
+        self.j_s: Optional[slice] = None
+        self.k_s: Optional[slice] = None
+        self.idx_s: Optional[Tuple] = None
+        self.idx_e: Optional[Tuple] = None
+
     def update(self):
         """Update detectors."""
 
@@ -118,21 +124,18 @@ class VoltageDetector(Detector):
             self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
             self.c_v = -dx / ((e[1] - s[1] + 1) * (e[2] - s[2] + 1))
-            self.index = 0
 
         elif self.direction == Direction.Y:
-            self.i_s = slice(self.idx_s[0], self.idx_e[0])
-            self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+            self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
+            self.j_s = slice(self.idx_s[1], self.idx_e[1])
             self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
             self.c_v = -dy / ((e[2] - s[2] + 1) * (e[0] - s[0] + 1))
-            self.index = 1
 
         else:
             self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
             self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             self.k_s = slice(self.idx_s[2], self.idx_e[2])
             self.c_v = -dz / ((e[0] - s[0] + 1) * (e[1] - s[1] + 1))
-            self.index = 2
 
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""
@@ -162,7 +165,8 @@ class VoltageDetector(Detector):
         """Capture voltage."""
         try:
             self.captured[self.grid.current_time_step] = self.c_v * np.sum(
-                self.grid.E[self.i_s, self.j_s, self.k_s, self.index])
+                self.grid.E[self.i_s, self.j_s, self.k_s,
+                            self.direction.value])
         except TypeError:
             self.captured = np.zeros(self.grid.n_steps)
             self.update()
