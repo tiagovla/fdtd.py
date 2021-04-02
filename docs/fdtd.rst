@@ -76,3 +76,15 @@ Magnetic Field Detector
 Electric Field Detector
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: EFieldDetector
+
+
+Boundaries
+------------------
+
+Periodic Boundary
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: PeriodicBlochBoundary
+
+Periodic Bloch Boundary
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: PeriodicBoundary

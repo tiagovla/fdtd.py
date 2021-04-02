@@ -8,7 +8,7 @@ from .utils import Direction
 
 
 class Boundary(FDTDElementBase):
-    """Implements a boundary condition."""
+    """Base class for all boundaries."""
 
     def update_E(self):
         """Update E field."""
@@ -21,7 +21,17 @@ class Boundary(FDTDElementBase):
 
 
 class PeriodicBoundary(Boundary):
-    """Implement a periodic boundary condition."""
+    """Model of a periodic boundary condition.
+
+    Parameters
+    ----------
+    x_direction : bool
+        Flag to enable the boundary condition along the x axis.
+    y_direction : bool
+        Flag to enable the boundary condition along the y axis.
+    z_direction : bool
+        Flag to enable the boundary condition along the z axis.
+    """
 
     def __init__(
         self,
@@ -55,16 +65,28 @@ class PeriodicBoundary(Boundary):
 
 
 class PeriodicBlochBoundary(Boundary):
-    """Implements a bloch periodic boundary condition."""
+    """Model of a periodic Bloch boundary condition.
+
+    Parameters
+    ----------
+    b_vec : Tuple[float,...]
+    Bloch wave vector.
+    x_direction : bool
+        Flag to enable the boundary condition along the x axis.
+    y_direction : bool
+        Flag to enable the boundary condition along the y axis.
+    z_direction : bool
+        Flag to enable the boundary condition along the z axis.
+    """
 
     def __init__(
         self,
-        b_vec: Tuple = (0, 0, 0),
+        b_vec: Tuple[float, ...] = (0, 0, 0),
         x_direction: bool = False,
         y_direction: bool = False,
         z_direction: bool = False,
     ):
-        """Initialize Bloch periodic boundary object."""
+        """Initialize periodic Bloch boundary condition."""
         super().__init__()
 
         self.b_vec = b_vec
