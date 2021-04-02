@@ -72,6 +72,10 @@ class PeriodicBlochBoundary(Boundary):
         self.y_dir = y_direction
         self.z_dir = z_direction
 
+        self.phi_x: np.ndarray
+        self.phi_y: np.ndarray
+        self.phi_z: np.ndarray
+
     def attach_to_grid(self):
         """Attach object to grid."""
         b_vec = np.array(self.b_vec)
@@ -85,15 +89,14 @@ class PeriodicBlochBoundary(Boundary):
     def update_E(self):
         """Update E field."""
         if self.x_dir:
-            self.grid.E[
-                0, :, :, :] = self.grid.E[-1, :, :, :] * self.phi_x.conj()
+            self.grid.E[0, :, :, :] = \
+                    self.grid.E[-1, :, :, :] * self.phi_x.conj()
         if self.y_dir:
-            self.grid.E[:,
-                        0, :, :] = self.grid.E[:,
-                                               -1, :, :] * self.phi_y.conj()
+            self.grid.E[:, 0, :, :] = \
+            self.grid.E[:, -1, :, :] * self.phi_y.conj()
         if self.z_dir:
-            self.grid.E[:, :,
-                        0, :] = self.grid.E[:, :, -1, :] * self.phi_z.conj()
+            self.grid.E[:, :, 0, :] = \
+                    self.grid.E[:, :, -1, :] * self.phi_z.conj()
 
     def update_H(self):
         """Update H field."""
