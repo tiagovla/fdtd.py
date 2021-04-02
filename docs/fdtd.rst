@@ -17,21 +17,46 @@ Objects
 
 Brick
 ~~~~~~~~~~~~~~~~~~
+
 .. autoclass:: Brick
-    :members:
 
 Sphere
 ~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: Sphere
-    :members:
+
+
+Lumped Elements
+------------------
+
+Resistor
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: Resistor
+
+Capacitor
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: Capacitor
+
+Inductor
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: Inductor
 
 Sources
 ------------------
 
 Voltage Source
 ~~~~~~~~~~~~~~~~~~
-
 .. autoclass:: VoltageSource
-    :members:
+
+Electric Field Source
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: EFieldSource
+
+Impressed Electric Current Source
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ImpressedElectricCurrentSource
+
+Impressed Magnetic Current Source
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ImpressedMagneticCurrentSource
 

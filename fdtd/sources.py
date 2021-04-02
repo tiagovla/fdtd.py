@@ -17,7 +17,31 @@ logger = logging.getLogger(__name__)
 
 
 class Source(FDTDElementBase):
-    """An source to be placed in the grid."""
+    """Base class for all sources.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing source.
+    y_min : float
+        Minimum y coordinate of the bounding box containing source.
+    z_min : float
+        Minimum z coordinate of the bounding box containing source.
+    x_max : float
+        Maximum x coordinate of the bounding box containing source.
+    y_max : float
+        Maximum y coordinate of the bounding box containing source.
+    z_max : float
+        Maximum z coordinate of the bounding box containing source.
+    resistance : float
+        Internal resistance of the source.
+    waveform_type: str
+        Waveform type.
+    name : Optional[str]
+        Name of the source.
+    direction : Direction
+        Direction of the source.
+    """
 
     def __init__(
         self,
@@ -87,7 +111,31 @@ class Source(FDTDElementBase):
 
 
 class ImpressedMagneticCurrentSource(Source):
-    """Implement an impressed electric current source."""
+    """Model of an impressed magnetic current source.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing source.
+    y_min : float
+        Minimum y coordinate of the bounding box containing source.
+    z_min : float
+        Minimum z coordinate of the bounding box containing source.
+    x_max : float
+        Maximum x coordinate of the bounding box containing source.
+    y_max : float
+        Maximum y coordinate of the bounding box containing source.
+    z_max : float
+        Maximum z coordinate of the bounding box containing source.
+    resistance : float
+        Internal resistance of the source.
+    waveform_type: str
+        Waveform type.
+    name : Optional[str]
+        Name of the source.
+    direction : Direction
+        Direction of the source.
+    """
 
     def update_H(self):
         """Update field."""
@@ -137,7 +185,31 @@ class ImpressedMagneticCurrentSource(Source):
 
 
 class ImpressedElectricCurrentSource(Source):
-    """Implement an impressed electric current source."""
+    """Model of an impressed electric current source.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing source.
+    y_min : float
+        Minimum y coordinate of the bounding box containing source.
+    z_min : float
+        Minimum z coordinate of the bounding box containing source.
+    x_max : float
+        Maximum x coordinate of the bounding box containing source.
+    y_max : float
+        Maximum y coordinate of the bounding box containing source.
+    z_max : float
+        Maximum z coordinate of the bounding box containing source.
+    resistance : float
+        Internal resistance of the source.
+    waveform_type: str
+        Waveform type.
+    name : Optional[str]
+        Name of the source.
+    direction : Direction
+        Direction of the source.
+    """
 
     def update_E(self):
         """Update field."""
@@ -187,7 +259,31 @@ class ImpressedElectricCurrentSource(Source):
 
 
 class EFieldSource(Source):
-    """Implement an E field source."""
+    """Model of an electric field source.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing source.
+    y_min : float
+        Minimum y coordinate of the bounding box containing source.
+    z_min : float
+        Minimum z coordinate of the bounding box containing source.
+    x_max : float
+        Maximum x coordinate of the bounding box containing source.
+    y_max : float
+        Maximum y coordinate of the bounding box containing source.
+    z_max : float
+        Maximum z coordinate of the bounding box containing source.
+    resistance : float
+        Internal resistance of the source.
+    waveform_type: str
+        Waveform type.
+    name : Optional[str]
+        Name of the source.
+    direction : Direction
+        Direction of the source.
+    """
 
     def update_E(self):
         """Update field."""
@@ -235,7 +331,31 @@ class EFieldSource(Source):
 
 
 class VoltageSource(Source):
-    """Implement a voltage source."""
+    """Model of a voltage source.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing source.
+    y_min : float
+        Minimum y coordinate of the bounding box containing source.
+    z_min : float
+        Minimum z coordinate of the bounding box containing source.
+    x_max : float
+        Maximum x coordinate of the bounding box containing source.
+    y_max : float
+        Maximum y coordinate of the bounding box containing source.
+    z_max : float
+        Maximum z coordinate of the bounding box containing source.
+    resistance : float
+        Internal resistance of the source.
+    waveform_type: str
+        Waveform type.
+    name : Optional[str]
+        Name of the source.
+    direction : Direction
+        Direction of the source.
+    """
 
     def update_E(self):
         """Update field."""
@@ -271,52 +391,55 @@ class VoltageSource(Source):
 
         dx, dy, dz = self.grid.spacing
         dt = self.grid.dt
-        Rs = self.resistance
-        term = (dt*dz) / (Rs*dx*dy)
+        r_s = self.resistance
+        term = (dt*dz) / (r_s*dx*dy)
 
         if self.direction == Direction.X:
-            self.I = I = slice(self.idx_s[0], self.idx_e[0])
-            self.J = J = slice(self.idx_s[1], self.idx_e[1] + 1)
-            self.K = K = slice(self.idx_s[2], self.idx_e[2] + 1)
+            self.I = i_s = slice(self.idx_s[0], self.idx_e[0])
+            self.J = j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+            self.K = k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
 
-            eps = self.grid.eps_r[I, J, K, 0] * EPS_0
-            sigma_e = self.grid.sigma_e[I, J, K, 0]
+            eps = self.grid.eps_r[i_s, j_s, k_s, 0] * EPS_0
+            sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 0]
 
-            self.grid.c_ee[I, J, K, 0] = (2*eps - dt*sigma_e -
-                                          term) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[I, J, K, 0] = (2*dt) / (2*eps + dt*sigma_e + term)
-            self.c_v = (2*dt) / (2*eps + dt*sigma_e + term) / (Rs*dy*dz)
+            self.grid.c_ee[i_s, j_s, k_s, 0] = \
+                    (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
+            self.grid.c_eh[i_s, j_s, k_s, 0] = \
+                    (2*dt) / (2*eps + dt*sigma_e + term)
+            self.c_v = (2*dt) / (2*eps + dt*sigma_e + term) / (r_s*dy*dz)
 
         elif self.direction == Direction.Y:
-            self.I = I = slice(self.idx_s[0], self.idx_e[0])
-            self.J = J = slice(self.idx_s[1], self.idx_e[1] + 1)
-            self.K = K = slice(self.idx_s[2], self.idx_e[2] + 1)
+            self.I = i_s = slice(self.idx_s[0], self.idx_e[0])
+            self.J = j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+            self.K = k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
 
-            eps = self.grid.eps_r[I, J, K, 1] * EPS_0
-            sigma_e = self.grid.sigma_e[I, J, K, 1]
+            eps = self.grid.eps_r[i_s, j_s, k_s, 1] * EPS_0
+            sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 1]
 
-            self.grid.c_ee[I, J, K, 1] = (2*eps - dt*sigma_e -
-                                          term) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[I, J, K, 1] = (2*dt) / (2*eps + dt*sigma_e + term)
-            self.c_v = (2*dt) / (2*eps + dt*sigma_e + term) / (Rs*dx*dz)
+            self.grid.c_ee[i_s, j_s, k_s, 1] = \
+                    (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
+            self.grid.c_eh[i_s, j_s, k_s, 1] = \
+                    (2*dt) / (2*eps + dt*sigma_e + term)
+            self.c_v = (2*dt) / (2*eps + dt*sigma_e + term) / (r_s*dx*dz)
 
         else:
-            self.I = I = slice(self.idx_s[0], self.idx_e[0] + 1)
-            self.J = J = slice(self.idx_s[1], self.idx_e[1] + 1)
-            self.K = K = slice(self.idx_s[2], self.idx_e[2])
+            self.I = i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
+            self.J = j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+            self.K = k_s = slice(self.idx_s[2], self.idx_e[2])
 
             self._v_f = 1 / (e[2] - s[2])
             self._r_f = (e[0] - s[0] + 1) * (e[1] - s[1] + 1) * self._v_f
 
-            eps = self.grid.eps_r[I, J, K, 2] * EPS_0
-            sigma_e = self.grid.sigma_e[I, J, K, 2]
-            Rs *= self._r_f
-            term = (dt*dz) / (Rs*dx*dy)
+            eps = self.grid.eps_r[i_s, j_s, k_s, 2] * EPS_0
+            sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 2]
+            r_s *= self._r_f
+            term = (dt*dz) / (r_s*dx*dy)
 
-            self.grid.c_ee[I, J, K, 2] = (2*eps - dt*sigma_e -
-                                          term) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[I, J, K, 2] = (2*dt) / (2*eps + dt*sigma_e + term)
-            self.c_v = -(2 * dt) / (2*eps + dt*sigma_e + term) / (Rs*dx*dy)
+            self.grid.c_ee[i_s, j_s, k_s, 2] = \
+                    (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
+            self.grid.c_eh[i_s, j_s, k_s,2] = \
+                    (2*dt) / (2*eps + dt*sigma_e + term)
+            self.c_v = -(2 * dt) / (2*eps + dt*sigma_e + term) / (r_s*dx*dy)
 
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""
