@@ -109,10 +109,10 @@ class Grid:
         self.current_time = 0
         self.n_steps = 0
 
-        self.c_ee[:]=0
-        self.c_eh[:]=0
-        self.c_hh[:]=0
-        self.c_he[:]=0
+        self.c_ee[:] = 0
+        self.c_eh[:] = 0
+        self.c_hh[:] = 0
+        self.c_he[:] = 0
 
         self.eps_r[:] = 1
         self.mu_r[:] = 1
