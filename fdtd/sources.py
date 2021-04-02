@@ -22,17 +22,17 @@ class Source(FDTDElementBase):
     Parameters
     ----------
     x_min : float
-        Minimum x coordinate of the bounding box containing source.
+        Minimum x coordinate of the bounding box containing the source.
     y_min : float
-        Minimum y coordinate of the bounding box containing source.
+        Minimum y coordinate of the bounding box containing the source.
     z_min : float
-        Minimum z coordinate of the bounding box containing source.
+        Minimum z coordinate of the bounding box containing the source.
     x_max : float
-        Maximum x coordinate of the bounding box containing source.
+        Maximum x coordinate of the bounding box containing the source.
     y_max : float
-        Maximum y coordinate of the bounding box containing source.
+        Maximum y coordinate of the bounding box containing the source.
     z_max : float
-        Maximum z coordinate of the bounding box containing source.
+        Maximum z coordinate of the bounding box containing the source.
     resistance : float
         Internal resistance of the source.
     waveform_type: str
@@ -116,17 +116,17 @@ class ImpressedMagneticCurrentSource(Source):
     Parameters
     ----------
     x_min : float
-        Minimum x coordinate of the bounding box containing source.
+        Minimum x coordinate of the bounding box containing the source.
     y_min : float
-        Minimum y coordinate of the bounding box containing source.
+        Minimum y coordinate of the bounding box containing the source.
     z_min : float
-        Minimum z coordinate of the bounding box containing source.
+        Minimum z coordinate of the bounding box containing the source.
     x_max : float
-        Maximum x coordinate of the bounding box containing source.
+        Maximum x coordinate of the bounding box containing the source.
     y_max : float
-        Maximum y coordinate of the bounding box containing source.
+        Maximum y coordinate of the bounding box containing the source.
     z_max : float
-        Maximum z coordinate of the bounding box containing source.
+        Maximum z coordinate of the bounding box containing the source.
     resistance : float
         Internal resistance of the source.
     waveform_type: str
@@ -190,17 +190,17 @@ class ImpressedElectricCurrentSource(Source):
     Parameters
     ----------
     x_min : float
-        Minimum x coordinate of the bounding box containing source.
+        Minimum x coordinate of the bounding box containing the source.
     y_min : float
-        Minimum y coordinate of the bounding box containing source.
+        Minimum y coordinate of the bounding box containing the source.
     z_min : float
-        Minimum z coordinate of the bounding box containing source.
+        Minimum z coordinate of the bounding box containing the source.
     x_max : float
-        Maximum x coordinate of the bounding box containing source.
+        Maximum x coordinate of the bounding box containing the source.
     y_max : float
-        Maximum y coordinate of the bounding box containing source.
+        Maximum y coordinate of the bounding box containing the source.
     z_max : float
-        Maximum z coordinate of the bounding box containing source.
+        Maximum z coordinate of the bounding box containing the source.
     resistance : float
         Internal resistance of the source.
     waveform_type: str
@@ -264,17 +264,17 @@ class EFieldSource(Source):
     Parameters
     ----------
     x_min : float
-        Minimum x coordinate of the bounding box containing source.
+        Minimum x coordinate of the bounding box containing the source.
     y_min : float
-        Minimum y coordinate of the bounding box containing source.
+        Minimum y coordinate of the bounding box containing the source.
     z_min : float
-        Minimum z coordinate of the bounding box containing source.
+        Minimum z coordinate of the bounding box containing the source.
     x_max : float
-        Maximum x coordinate of the bounding box containing source.
+        Maximum x coordinate of the bounding box containing the source.
     y_max : float
-        Maximum y coordinate of the bounding box containing source.
+        Maximum y coordinate of the bounding box containing the source.
     z_max : float
-        Maximum z coordinate of the bounding box containing source.
+        Maximum z coordinate of the bounding box containing the source.
     resistance : float
         Internal resistance of the source.
     waveform_type: str
@@ -336,17 +336,17 @@ class VoltageSource(Source):
     Parameters
     ----------
     x_min : float
-        Minimum x coordinate of the bounding box containing source.
+        Minimum x coordinate of the bounding box containing the source.
     y_min : float
-        Minimum y coordinate of the bounding box containing source.
+        Minimum y coordinate of the bounding box containing the source.
     z_min : float
-        Minimum z coordinate of the bounding box containing source.
+        Minimum z coordinate of the bounding box containing the source.
     x_max : float
-        Maximum x coordinate of the bounding box containing source.
+        Maximum x coordinate of the bounding box containing the source.
     y_max : float
-        Maximum y coordinate of the bounding box containing source.
+        Maximum y coordinate of the bounding box containing the source.
     z_max : float
-        Maximum z coordinate of the bounding box containing source.
+        Maximum z coordinate of the bounding box containing the source.
     resistance : float
         Internal resistance of the source.
     waveform_type: str

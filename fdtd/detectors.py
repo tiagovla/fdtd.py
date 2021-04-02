@@ -15,7 +15,27 @@ logger = logging.getLogger(__name__)
 
 
 class Detector(FDTDElementBase):
-    """An source to be placed in the grid."""
+    """Base class for all detectors.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing the detector.
+    y_min : float
+        Minimum y coordinate of the bounding box containing the detector.
+    z_min : float
+        Minimum z coordinate of the bounding box containing the detector.
+    x_max : float
+        Maximum x coordinate of the bounding box containing the detector.
+    y_max : float
+        Maximum y coordinate of the bounding box containing the detector.
+    z_max : float
+        Maximum z coordinate of the bounding box containing the detector.
+    name : Optional[str]
+        Name of the source.
+    plot : bool
+        Flag to enable plotting.
+    """
 
     def __init__(
         self,
@@ -56,7 +76,27 @@ class Detector(FDTDElementBase):
 
 
 class VoltageDetector(Detector):
-    """Implement a voltage detector."""
+    """Model of a voltage detector.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing the detector.
+    y_min : float
+        Minimum y coordinate of the bounding box containing the detector.
+    z_min : float
+        Minimum z coordinate of the bounding box containing the detector.
+    x_max : float
+        Maximum x coordinate of the bounding box containing the detector.
+    y_max : float
+        Maximum y coordinate of the bounding box containing the detector.
+    z_max : float
+        Maximum z coordinate of the bounding box containing the detector.
+    name : Optional[str]
+        Name of the source.
+    plot : bool
+        Flag to enable plotting.
+    """
 
     def attach_to_grid(self):
         """Attach object to grid."""
@@ -71,26 +111,26 @@ class VoltageDetector(Detector):
             np.argmin(np.abs(self.grid._z - self.z_max)),
         )
 
-        dx, dy, dz = self.grid.grid_spacing
+        dx, dy, dz = self.grid.spacing
 
         if self.direction == Direction.X:
-            self.I = slice(self.idx_s[0], self.idx_e[0])
-            self.J = slice(self.idx_s[1], self.idx_e[1] + 1)
-            self.K = slice(self.idx_s[2], self.idx_e[2] + 1)
+            self.i_s = slice(self.idx_s[0], self.idx_e[0])
+            self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+            self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
             self.c_v = -dx / ((e[1] - s[1] + 1) * (e[2] - s[2] + 1))
             self.index = 0
 
         elif self.direction == Direction.Y:
-            self.I = slice(self.idx_s[0], self.idx_e[0])
-            self.J = slice(self.idx_s[1], self.idx_e[1] + 1)
-            self.K = slice(self.idx_s[2], self.idx_e[2] + 1)
+            self.i_s = slice(self.idx_s[0], self.idx_e[0])
+            self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+            self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
             self.c_v = -dy / ((e[2] - s[2] + 1) * (e[0] - s[0] + 1))
             self.index = 1
 
         else:
-            self.I = slice(self.idx_s[0], self.idx_e[0] + 1)
-            self.J = slice(self.idx_s[1], self.idx_e[1] + 1)
-            self.K = slice(self.idx_s[2], self.idx_e[2])
+            self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
+            self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+            self.k_s = slice(self.idx_s[2], self.idx_e[2])
             self.c_v = -dz / ((e[0] - s[0] + 1) * (e[1] - s[1] + 1))
             self.index = 2
 
@@ -122,14 +162,34 @@ class VoltageDetector(Detector):
         """Capture voltage."""
         try:
             self.captured[self.grid.current_time_step] = self.c_v * np.sum(
-                self.grid.E[self.I, self.J, self.K, self.index])
+                self.grid.E[self.i_s, self.j_s, self.k_s, self.index])
         except TypeError:
             self.captured = np.zeros(self.grid.n_steps)
             self.update()
 
 
 class HFieldDetector(Detector):
-    """Implement a voltage detector."""
+    """Model of a magnetic field detector.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing the detector.
+    y_min : float
+        Minimum y coordinate of the bounding box containing the detector.
+    z_min : float
+        Minimum z coordinate of the bounding box containing the detector.
+    x_max : float
+        Maximum x coordinate of the bounding box containing the detector.
+    y_max : float
+        Maximum y coordinate of the bounding box containing the detector.
+    z_max : float
+        Maximum z coordinate of the bounding box containing the detector.
+    name : Optional[str]
+        Name of the source.
+    plot : bool
+        Flag to enable plotting.
+    """
 
     def attach_to_grid(self):
         """Attach object to grid."""
@@ -200,7 +260,27 @@ class HFieldDetector(Detector):
 
 
 class EFieldDetector(Detector):
-    """Implement a voltage detector."""
+    """Model of an electric field detector.
+
+    Parameters
+    ----------
+    x_min : float
+        Minimum x coordinate of the bounding box containing the detector.
+    y_min : float
+        Minimum y coordinate of the bounding box containing the detector.
+    z_min : float
+        Minimum z coordinate of the bounding box containing the detector.
+    x_max : float
+        Maximum x coordinate of the bounding box containing the detector.
+    y_max : float
+        Maximum y coordinate of the bounding box containing the detector.
+    z_max : float
+        Maximum z coordinate of the bounding box containing the detector.
+    name : Optional[str]
+        Name of the source.
+    plot : bool
+        Flag to enable plotting.
+    """
 
     def attach_to_grid(self):
         """Attach object to grid."""
@@ -254,44 +334,9 @@ class EFieldDetector(Detector):
         self.values_time = self.captured.flatten()
         self.time = self.grid.dt * np.arange(0, self.grid.n_steps)
 
-        # FFT:
         N = len(self.values_time)
         self.values_freq = np.fft.fft(self.values_time)[:N // 2] / N
         self.freq = np.fft.fftfreq(N, self.grid.dt)[:N // 2]
-
-    # def plot(self):
-    #     """Plot."""
-    #     if not self._plot:
-    #         return
-
-    #     fig = plt.figure()
-    #     ax = fig.add_subplot(111, projection="3d")
-
-    #     X, Y = np.meshgrid(self.grid._x, self.grid._y, indexing="ij")
-
-    #     def animate(time_step):
-    #         ax.clear()
-    #         ax.plot_surface(X,
-    #                         Y,
-    #                         abs(self.captured[:, :, 0, 5 * time_step]),
-    #                         cmap=cm.jet)
-    #         # ax.pcolor(X,
-    #         #           Y,
-    #         #           abs(self.captured[:, :, 0, 5 * time_step]),
-    #         #           cmap="PuBu_r")
-
-    #     ani = animation.FuncAnimation(
-    #         fig,
-    #         animate,
-    #         interval=1,
-    #         frames=int(np.floor(self.grid.n_steps / 5)),
-    #         repeat=False,
-    #     )
-    #     # writergif = animation.PillowWriter(fps=30)
-    #     # ani.save("animation.gif", writer=writergif)
-
-    #     ax.view_init(elev=90, azim=-90)
-    #     plt.show()
 
     def update(self):
         """Capture E Field."""

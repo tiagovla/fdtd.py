@@ -41,6 +41,7 @@ Inductor
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: Inductor
 
+
 Sources
 ------------------
 
@@ -60,3 +61,18 @@ Impressed Magnetic Current Source
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ImpressedMagneticCurrentSource
 
+
+Detectors
+------------------
+
+Voltage Detector
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: VoltageDetector
+
+Magnetic Field Detector
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: HFieldDetector
+
+Electric Field Detector
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: EFieldDetector
