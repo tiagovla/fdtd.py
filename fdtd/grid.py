@@ -96,12 +96,12 @@ class Grid:
         self.n_steps: int = 0
 
         # usefull auxiliary arrays:
-        self._x_c: np.ndarray = self.dx * (0.5 + np.arange(0, self.Nx))
-        self._y_c: np.ndarray = self.dy * (0.5 + np.arange(0, self.Ny))
-        self._z_c: np.ndarray = self.dz * (0.5 + np.arange(0, self.Nz))
-        self._x: np.ndarray = self.dx * np.arange(0, self.Nx)
-        self._y: np.ndarray = self.dy * np.arange(0, self.Ny)
-        self._z: np.ndarray = self.dz * np.arange(0, self.Nz)
+        self.x_c: np.ndarray = self.dx * (0.5 + np.arange(0, self.Nx))
+        self.y_c: np.ndarray = self.dy * (0.5 + np.arange(0, self.Ny))
+        self.z_c: np.ndarray = self.dz * (0.5 + np.arange(0, self.Nz))
+        self.x: np.ndarray = self.dx * np.arange(0, self.Nx)
+        self.y: np.ndarray = self.dy * np.arange(0, self.Ny)
+        self.z: np.ndarray = self.dz * np.arange(0, self.Nz)
 
     def reset(self):
         """Reset the grid's inner state."""
@@ -364,7 +364,7 @@ class Grid:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
 
-        X, Y, Z = np.meshgrid(self._x, self._y, self._z)
+        X, Y, Z = np.meshgrid(self.x, self.y, self.z)
         mask = self.eps_r[:, :, :, 1] > 1
         x, y, z = np.nonzero(mask)
         ax.scatter(x * self.spacing[0], y * self.spacing[1],
@@ -384,7 +384,7 @@ class Grid:
         """Plot material."""
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
-        X, Y, Z = np.meshgrid(self._x, self._y, self._z)
+        X, Y, Z = np.meshgrid(self.x, self.y, self.z)
         mask = self.eps_r[:, :, :, 2] > 1
         ax.scatter(X[mask], Y[mask], Z[mask])
 
@@ -402,7 +402,7 @@ class Grid:
         """Plot material."""
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
-        X, Y, Z = np.meshgrid(self._x_c, self._y_c, self._z_c)
+        X, Y, Z = np.meshgrid(self.x_c, self.y_c, self.z_c)
         mask = self.cell_material[:, :, :, 0] > 1
         ax.scatter(X[mask], Y[mask], Z[mask])
 
@@ -433,7 +433,7 @@ class Grid:
         for det in self.detectors:
             det.plot_3d(ax)
 
-        X, Y, Z = np.meshgrid(self._x, self._y, self._z, indexing="ij")
+        X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing="ij")
         mask = self.sigma_e[:, :, :, 0] > 0.1
         ax.scatter(X[mask] + self.dx / 2, Y[mask], Z[mask], c="blue")
 
@@ -441,9 +441,9 @@ class Grid:
         ax.scatter(X[mask], Y[mask] + self.dy / 2, Z[mask], c="red")
 
         ax.grid(True)
-        ax.set_xticks(self._x)
-        ax.set_yticks(self._y)
-        ax.set_zticks(self._z)
+        ax.set_xticks(self.x)
+        ax.set_yticks(self.y)
+        ax.set_zticks(self.z)
         ax.set_xlim([0, self.Nx * self.dx])
         ax.set_ylim([0, self.Ny * self.dy])
         ax.set_zlim([0, self.Nz * self.dz])

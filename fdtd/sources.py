@@ -81,14 +81,14 @@ class Source(FDTDElementBase):
     def attach_to_grid(self):
         """Attach object to grid."""
         self.idx_s = (
-            np.argmin(np.abs(self.grid._x - self.x_min)),
-            np.argmin(np.abs(self.grid._y - self.y_min)),
-            np.argmin(np.abs(self.grid._z - self.z_min)),
+            np.argmin(np.abs(self.grid.x - self.x_min)),
+            np.argmin(np.abs(self.grid.y - self.y_min)),
+            np.argmin(np.abs(self.grid.z - self.z_min)),
         )
         self.idx_e = (
-            np.argmin(np.abs(self.grid._x - self.x_max)),
-            np.argmin(np.abs(self.grid._y - self.y_max)),
-            np.argmin(np.abs(self.grid._z - self.z_max)),
+            np.argmin(np.abs(self.grid.x - self.x_max)),
+            np.argmin(np.abs(self.grid.y - self.y_max)),
+            np.argmin(np.abs(self.grid.z - self.z_max)),
         )
 
         logger.debug(f"Source attached to {self.idx_s} to {self.idx_e}")
@@ -150,14 +150,14 @@ class ImpressedMagneticCurrentSource(Source):
     def attach_to_grid(self):
         """Attach object to grid."""
         self.idx_s = (
-            np.argmin(np.abs(self.grid._x - self.x_min)),
-            np.argmin(np.abs(self.grid._y - self.y_min)),
-            np.argmin(np.abs(self.grid._z - self.z_min)),
+            np.argmin(np.abs(self.grid.x - self.x_min)),
+            np.argmin(np.abs(self.grid.y - self.y_min)),
+            np.argmin(np.abs(self.grid.z - self.z_min)),
         )
         self.idx_e = (
-            np.argmin(np.abs(self.grid._x - self.x_max)),
-            np.argmin(np.abs(self.grid._y - self.y_max)),
-            np.argmin(np.abs(self.grid._z - self.z_max)),
+            np.argmin(np.abs(self.grid.x - self.x_max)),
+            np.argmin(np.abs(self.grid.y - self.y_max)),
+            np.argmin(np.abs(self.grid.z - self.z_max)),
         )
 
         logger.debug(
@@ -224,14 +224,14 @@ class ImpressedElectricCurrentSource(Source):
     def attach_to_grid(self):
         """Attach object to grid."""
         self.idx_s = (
-            np.argmin(np.abs(self.grid._x - self.x_min)),
-            np.argmin(np.abs(self.grid._y - self.y_min)),
-            np.argmin(np.abs(self.grid._z - self.z_min)),
+            np.argmin(np.abs(self.grid.x - self.x_min)),
+            np.argmin(np.abs(self.grid.y - self.y_min)),
+            np.argmin(np.abs(self.grid.z - self.z_min)),
         )
         self.idx_e = (
-            np.argmin(np.abs(self.grid._x - self.x_max)),
-            np.argmin(np.abs(self.grid._y - self.y_max)),
-            np.argmin(np.abs(self.grid._z - self.z_max)),
+            np.argmin(np.abs(self.grid.x - self.x_max)),
+            np.argmin(np.abs(self.grid.y - self.y_max)),
+            np.argmin(np.abs(self.grid.z - self.z_max)),
         )
 
         logger.debug(
@@ -296,14 +296,14 @@ class EFieldSource(Source):
     def attach_to_grid(self):
         """Attach object to grid."""
         self.idx_s = (
-            np.argmin(np.abs(self.grid._x - self.x_min)),
-            np.argmin(np.abs(self.grid._y - self.y_min)),
-            np.argmin(np.abs(self.grid._z - self.z_min)),
+            np.argmin(np.abs(self.grid.x - self.x_min)),
+            np.argmin(np.abs(self.grid.y - self.y_min)),
+            np.argmin(np.abs(self.grid.z - self.z_min)),
         )
         self.idx_e = (
-            np.argmin(np.abs(self.grid._x - self.x_max)),
-            np.argmin(np.abs(self.grid._y - self.y_max)),
-            np.argmin(np.abs(self.grid._z - self.z_max)),
+            np.argmin(np.abs(self.grid.x - self.x_max)),
+            np.argmin(np.abs(self.grid.y - self.y_max)),
+            np.argmin(np.abs(self.grid.z - self.z_max)),
         )
 
         logger.debug(
@@ -379,14 +379,14 @@ class VoltageSource(Source):
     def attach_to_grid(self):
         """Attach object to grid."""
         self.idx_s = s = (
-            np.argmin(np.abs(self.grid._x - self.x_min)),
-            np.argmin(np.abs(self.grid._y - self.y_min)),
-            np.argmin(np.abs(self.grid._z - self.z_min)),
+            np.argmin(np.abs(self.grid.x - self.x_min)),
+            np.argmin(np.abs(self.grid.y - self.y_min)),
+            np.argmin(np.abs(self.grid.z - self.z_min)),
         )
         self.idx_e = e = (
-            np.argmin(np.abs(self.grid._x - self.x_max)),
-            np.argmin(np.abs(self.grid._y - self.y_max)),
-            np.argmin(np.abs(self.grid._z - self.z_max)),
+            np.argmin(np.abs(self.grid.x - self.x_max)),
+            np.argmin(np.abs(self.grid.y - self.y_max)),
+            np.argmin(np.abs(self.grid.z - self.z_max)),
         )
 
         dx, dy, dz = self.grid.spacing

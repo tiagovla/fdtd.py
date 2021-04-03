@@ -75,9 +75,9 @@ class Brick(Object):
         """Attach the material of an object to the grid."""
         grid = self.grid
         bb = self.bounding_box
-        slice_x = (grid._x_c >= bb.x_min) & (grid._x_c <= bb.x_max)
-        slice_y = (grid._y_c >= bb.y_min) & (grid._y_c <= bb.y_max)
-        slice_z = (grid._z_c >= bb.z_min) & (grid._z_c <= bb.z_max)
+        slice_x = (grid.x_c >= bb.x_min) & (grid.x_c <= bb.x_max)
+        slice_y = (grid.y_c >= bb.y_min) & (grid.y_c <= bb.y_max)
+        slice_z = (grid.z_c >= bb.z_min) & (grid.z_c <= bb.z_max)
         I, J, K = np.ix_(slice_x, slice_y, slice_z)
         grid.cell_material[I, J, K, :] = [
             self.material.eps_r,
@@ -89,14 +89,14 @@ class Brick(Object):
     def attach_to_grid_zero_thinkness(self):
         """Attach the coeficients directly to the property grid."""
         s = self.idx_s = (
-            np.argmin(np.abs(self.grid._x - self.x_min)),
-            np.argmin(np.abs(self.grid._y - self.y_min)),
-            np.argmin(np.abs(self.grid._z - self.z_min)),
+            np.argmin(np.abs(self.grid.x - self.x_min)),
+            np.argmin(np.abs(self.grid.y - self.y_min)),
+            np.argmin(np.abs(self.grid.z - self.z_min)),
         )
         e = self.idx_e = (
-            np.argmin(np.abs(self.grid._x - self.x_max)),
-            np.argmin(np.abs(self.grid._y - self.y_max)),
-            np.argmin(np.abs(self.grid._z - self.z_max)),
+            np.argmin(np.abs(self.grid.x - self.x_max)),
+            np.argmin(np.abs(self.grid.y - self.y_max)),
+            np.argmin(np.abs(self.grid.z - self.z_max)),
         )
 
         sigma_e = self.grid.sigma_e
@@ -167,14 +167,13 @@ class Sphere(Object):
         """Attach the material of an object to the grid."""
         grid = self.grid
         bb = self.bounding_box
-        slice_x = (grid._x_c > bb.x_min) & (grid._x_c < bb.x_max)
-        slice_y = (grid._y_c > bb.y_min) & (grid._y_c < bb.y_max)
-        slice_z = (grid._z_c > bb.z_min) & (grid._z_c < bb.z_max)
+        slice_x = (grid.x_c > bb.x_min) & (grid.x_c < bb.x_max)
+        slice_y = (grid.y_c > bb.y_min) & (grid.y_c < bb.y_max)
+        slice_z = (grid.z_c > bb.z_min) & (grid.z_c < bb.z_max)
         I, J, K = np.ix_(slice_x, slice_y, slice_z)
         l_m_g = grid.cell_material[I, J, K, :]
-        l_x_c, l_y_c, l_z_c = np.meshgrid(grid._x_c[slice_x],
-                                          grid._y_c[slice_y],
-                                          grid._z_c[slice_z])
+        l_x_c, l_y_c, l_z_c = np.meshgrid(grid.x_c[slice_x], grid.y_c[slice_y],
+                                          grid.z_c[slice_z])
         mask = (l_x_c - self.x_center)**2 + (l_y_c - self.y_center)**2 + (
             l_z_c - self.z_center)**2 <= self.radius**2
         l_m_g[mask, :] = [

@@ -107,14 +107,14 @@ class VoltageDetector(Detector):
     def attach_to_grid(self):
         """Attach object to grid."""
         s = self.idx_s = (
-            np.argmin(np.abs(self.grid._x - self.x_min)),
-            np.argmin(np.abs(self.grid._y - self.y_min)),
-            np.argmin(np.abs(self.grid._z - self.z_min)),
+            np.argmin(np.abs(self.grid.x - self.x_min)),
+            np.argmin(np.abs(self.grid.y - self.y_min)),
+            np.argmin(np.abs(self.grid.z - self.z_min)),
         )
         e = self.idx_e = (
-            np.argmin(np.abs(self.grid._x - self.x_max)),
-            np.argmin(np.abs(self.grid._y - self.y_max)),
-            np.argmin(np.abs(self.grid._z - self.z_max)),
+            np.argmin(np.abs(self.grid.x - self.x_max)),
+            np.argmin(np.abs(self.grid.y - self.y_max)),
+            np.argmin(np.abs(self.grid.z - self.z_max)),
         )
 
         dx, dy, dz = self.grid.spacing
@@ -198,14 +198,14 @@ class HFieldDetector(Detector):
     def attach_to_grid(self):
         """Attach object to grid."""
         s = self.idx_s = (
-            np.argmin(np.abs(self.grid._x - self.x_min)),
-            np.argmin(np.abs(self.grid._y - self.y_min)),
-            np.argmin(np.abs(self.grid._z - self.z_min)),
+            np.argmin(np.abs(self.grid.x - self.x_min)),
+            np.argmin(np.abs(self.grid.y - self.y_min)),
+            np.argmin(np.abs(self.grid.z - self.z_min)),
         )
         e = self.idx_e = (
-            np.argmin(np.abs(self.grid._x - self.x_max)),
-            np.argmin(np.abs(self.grid._y - self.y_max)),
-            np.argmin(np.abs(self.grid._z - self.z_max)),
+            np.argmin(np.abs(self.grid.x - self.x_max)),
+            np.argmin(np.abs(self.grid.y - self.y_max)),
+            np.argmin(np.abs(self.grid.z - self.z_max)),
         )
         self.size = (e[0] - s[0] + 1, e[1] - s[1] + 1, e[2] - s[2] + 1)
 
@@ -290,14 +290,14 @@ class EFieldDetector(Detector):
     def attach_to_grid(self):
         """Attach object to grid."""
         s = self.idx_s = (
-            np.argmin(np.abs(self.grid._x - self.x_min)),
-            np.argmin(np.abs(self.grid._y - self.y_min)),
-            np.argmin(np.abs(self.grid._z - self.z_min)),
+            np.argmin(np.abs(self.grid.x - self.x_min)),
+            np.argmin(np.abs(self.grid.y - self.y_min)),
+            np.argmin(np.abs(self.grid.z - self.z_min)),
         )
         e = self.idx_e = (
-            np.argmin(np.abs(self.grid._x - self.x_max)),
-            np.argmin(np.abs(self.grid._y - self.y_max)),
-            np.argmin(np.abs(self.grid._z - self.z_max)),
+            np.argmin(np.abs(self.grid.x - self.x_max)),
+            np.argmin(np.abs(self.grid.y - self.y_max)),
+            np.argmin(np.abs(self.grid.z - self.z_max)),
         )
         self.size = (e[0] - s[0] + 1, e[1] - s[1] + 1, e[2] - s[2] + 1)
 

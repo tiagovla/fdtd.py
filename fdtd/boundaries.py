@@ -115,7 +115,7 @@ class PeriodicBlochBoundary(Boundary):
                     self.grid.E[-1, :, :, :] * self.phi_x.conj()
         if self.y_dir:
             self.grid.E[:, 0, :, :] = \
-            self.grid.E[:, -1, :, :] * self.phi_y.conj()
+                    self.grid.E[:, -1, :, :] * self.phi_y.conj()
         if self.z_dir:
             self.grid.E[:, :, 0, :] = \
                     self.grid.E[:, :, -1, :] * self.phi_z.conj()
