@@ -359,10 +359,10 @@ class VoltageSource(Source):
 
     def update_E(self):
         """Update field."""
-        if self.grid.current_time_step > 50:
-            Vs = np.sin(2 * PI * 1e9 *
-                        (self.grid.current_time - 50 * self.grid.dt))
-            # Vs = 1
+        if self.grid.current_time_step > 20:
+            # Vs = np.sin(2 * PI * 1e9 *
+            #             (self.grid.current_time - 50 * self.grid.dt))
+            Vs = 1
         else:
             Vs = 0
         # Vs = 0 if self.grid.current_time_step < 50 else 1

@@ -1,7 +1,6 @@
 import copy
 import logging
-import random
-from logging.config import fileConfig
+from random import uniform
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,86 +9,64 @@ from morpho import SymmetryPoint as SPoint
 from scipy.signal import find_peaks
 
 from fdtd import EFieldDetector, Grid, HFieldDetector, Material
-from fdtd.boundaries import PeriodicBlochBoundary
+from fdtd.boundaries import PeriodicBlochBoundary as PBBoundary
 from fdtd.constants import SPEED_LIGHT as C
 from fdtd.objects import Sphere
 from fdtd.sources import ImpressedElectricCurrentSource as JSource
 from fdtd.sources import ImpressedMagneticCurrentSource as MSource
 
-# Setting up logger
-# fileConfig("logging_config.ini")
 logger = logging.getLogger("fdtd")
 
 print("Loading materials...")
 Material.load("materials.json")
 
+print("Defining initial parameters...")
+a = 1e-6  #unit cell size
+n = 64  #grid 64x64
+r = 0.2 * a  #cylinder radius
+
 print("Creating grid...")
-grid_tm = Grid(shape=(64, 64, 1), spacing=(1/64) * 1e-6)
-grid_te = Grid(shape=(64, 64, 1), spacing=(1/64) * 1e-6)
+grid_tm = Grid(shape=(n, n, 1), spacing=(1/n) * a)
+grid_te = Grid(shape=(n, n, 1), spacing=(1/n) * a)
 
 print("Creating components...")
-
-j_sources = []
-e_detectors = []
-
-j_sources = []
-for _ in range(5):
-    point = (random.uniform(0.1e-6, 0.9e-6), random.uniform(0.1e-6, 0.9e-6), 0)
-    j_source = JSource(*point, *point)
-    j_sources.append(j_source)
-
-e_detectors = []
-for _ in range(5):
-    point = (random.uniform(0.1e-6, 0.9e-6), random.uniform(0.1e-6, 0.9e-6), 0)
-    e_detector = EFieldDetector(*point, *point)
-    e_detectors.append(e_detector)
-
-m_sources = []
-for _ in range(5):
-    point = (random.uniform(0.1e-6, 0.9e-6), random.uniform(0.1e-6, 0.9e-6), 0)
-    m_source = MSource(*point, *point)
-    m_sources.append(m_source)
-
-h_detectors = []
-for _ in range(5):
-    point = (random.uniform(0.1e-6, 0.9e-6), random.uniform(0.1e-6, 0.9e-6), 0)
-    h_detector = HFieldDetector(*point, *point)
-    h_detectors.append(h_detector)
-
-p_boundary_tm = PeriodicBlochBoundary(x_direction=True, y_direction=True)
-
-p_boundary_te = copy.deepcopy(p_boundary_tm)
-
 diel_mat = Material(name="diel", eps_r=8.9)
 
-sphere_tm = Sphere(*(0.5e-6, 0.5e-6, 0), radius=0.2e-6, material=diel_mat)
+
+def rpoints():
+    px = uniform(0.1 * a, 0.9 * a)
+    py = uniform(0.1 * a, 0.9 * a)
+    return (px, py, 0, px, py, 0)
+
+
+j_sources = [JSource(*rpoints()) for _ in range(5)]
+m_sources = [MSource(*rpoints()) for _ in range(5)]
+e_detectors = [EFieldDetector(*rpoints()) for _ in range(5)]
+h_detectors = [HFieldDetector(*rpoints()) for _ in range(5)]
+
+p_boundary_tm = PBBoundary(x_direction=True, y_direction=True)
+p_boundary_te = copy.deepcopy(p_boundary_tm)
+
+sphere_tm = Sphere(*(0.5 * a, 0.5 * a, 0), radius=r, material=diel_mat)
 sphere_te = copy.deepcopy(sphere_tm)
 
 print("Adding components to grid...")
 
-grid_tm.add(sphere_tm)
-grid_tm.add(p_boundary_tm)
-for j_source in j_sources:
-    grid_tm.add(j_source)
-for e_detector in e_detectors:
-    grid_tm.add(e_detector)
+for elm in [*j_sources, *e_detectors, sphere_tm, p_boundary_tm]:
+    grid_tm.add(elm)
 
-grid_te.add(sphere_te)
-grid_te.add(p_boundary_te)
-for m_source in m_sources:
-    grid_te.add(m_source)
-for h_detector in h_detectors:
-    grid_te.add(h_detector)
+for elm in [*m_sources, *h_detectors, sphere_te, p_boundary_te]:
+    grid_te.add(elm)
 
 print("Running simulation...")
 
-n_steps = 20000
+n_steps = 10000
 frames = 10
-a = 1e-6
 
 G = SPoint((0, 0), "Γ")
 X = SPoint((1 / 2, 0), "X")
 M = SPoint((1 / 2, 1 / 2, 0), "M")
+
 t1, t2 = (a, 0), (0, a)
 bz_path = BZPath([G, X, M, G], t1, t2, n_points=50)
 

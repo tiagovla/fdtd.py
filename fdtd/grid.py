@@ -120,12 +120,14 @@ class Grid:
         self.sigma_m[:] = 1e-20
 
     def _calculate_material_components_simple(self):
+        """Calculate material components."""
         self.eps_r[:, :, :, :] = self.cell_material[:, :, :, 0, None]
         self.mu_r[:, :, :, :] = self.cell_material[:, :, :, 1, None]
         self.sigma_e[:, :, :, :] = self.cell_material[:, :, :, 2, None]
         self.sigma_m[:, :, :, :] = self.cell_material[:, :, :, 3, None]
 
     def _calculate_material_components(self):
+        """Calculate material components using average method."""
         cel_m = self.cell_material
         # yapf: disable
         self.eps_r[0:-1, 1:-1, 1:-1, 0] = \
@@ -341,6 +343,8 @@ class Grid:
         plt.show()
 
     def _initialize_updating_coefficients(self):
+        """Initialize updating coefficients."""
+
         logger.info("Initializing updating coefficients...")
         dt = self.dt
         eps = self.eps_r * EPS_0
