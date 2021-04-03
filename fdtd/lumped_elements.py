@@ -141,49 +141,30 @@ class Resistor(LumpedElement):
         dx, dy, dz = self.grid.spacing
         dt = self.grid.dt
         r_s = self.resistance
-        term = (dt*dz) / (r_s*dx*dy)
 
         if self.direction == Direction.X:
             i_s = slice(self.idx_s[0], self.idx_e[0])
             j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-
-            eps = self.grid.eps_r[i_s, j_s, k_s, 0] * EPS_0
-            sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 0]
-
-            self.grid.c_ee[i_s, j_s, k_s, 0] = \
-                    (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[i_s, j_s, k_s, 1] = \
-                    (2*dt) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[i_s, j_s, k_s, 2] = self.grid.c_eh[i_s, j_s, k_s, 1]
-
+            term = (dt*dx) / (r_s*dy*dz)
         elif self.direction == Direction.Y:
             i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
             j_s = slice(self.idx_s[1], self.idx_e[1])
             k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-
-            eps = self.grid.eps_r[i_s, j_s, k_s, 1] * EPS_0
-            sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 1]
-
-            self.grid.c_ee[i_s, j_s, k_s, 1] = \
-                    (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[i_s, j_s, k_s, 0] = \
-                    (2*dt) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[i_s, j_s, k_s, 2] = self.grid.c_eh[i_s, j_s, k_s, 0]
-
+            term = (dt*dy) / (r_s*dx*dz)
         else:
             i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
             j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             k_s = slice(self.idx_s[2], self.idx_e[2])
+            term = (dt*dz) / (r_s*dx*dy)
 
-            eps = self.grid.eps_r[i_s, j_s, k_s, 2] * EPS_0
-            sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 2]
+        eps = self.grid.eps_r[i_s, j_s, k_s, self.direction.value] * EPS_0
+        sigma_e = self.grid.sigma_e[i_s, j_s, k_s, self.direction.value]
 
-            self.grid.c_ee[i_s, j_s, k_s, 2] = \
-                    (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[i_s, j_s, k_s, 1] = \
-                    (2*dt) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[i_s, j_s, k_s, 0] = self.grid.c_eh[i_s, j_s, k_s, 1]
+        self.grid.c_ee[i_s, j_s, k_s, self.direction.value] = \
+                (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
+        self.grid.c_eh[i_s, j_s, k_s, self.direction.value] = \
+                (2*dt) / (2*eps + dt*sigma_e + term)
 
 
 class Capacitor(LumpedElement):
@@ -203,8 +184,6 @@ class Capacitor(LumpedElement):
         Maximum y coordinate of the bounding box containing the capacitor.
     z_max : float
         Maximum z coordinate of the bounding box containing the capacitor.
-    resistance : float
-        Internal resistance of the capacitor.
     capacitance : float
         Internal capacitance of the capacitor.
     """
@@ -217,7 +196,6 @@ class Capacitor(LumpedElement):
         x_max: float,
         y_max: float,
         z_max: float,
-        resistance: float = 50,
         capacitance: float = 1e-9,
     ):
         """Initialize the object."""
@@ -227,8 +205,55 @@ class Capacitor(LumpedElement):
         self.x_max = x_max
         self.y_max = y_max
         self.z_max = z_max
-        self.resistance = resistance
         self.capacitance = capacitance
+
+    def __repr__(self):
+        """Dev. string representation."""
+        return (f"{self.__class__.__name__}"
+                f"[name={self.name}, capacitance={self.capacitance}, "
+                f"x_min={self.x_min}, y_min={self.y_min}, z_min={self.z_min}, "
+                f"x_max={self.x_max}, y_max={self.y_max}, z_max={self.z_max}]")
+
+    def attach_to_grid(self):
+        """Attach object to grid."""
+        self.idx_s = (
+            np.argmin(np.abs(self.grid.x - self.x_min)),
+            np.argmin(np.abs(self.grid.y - self.y_min)),
+            np.argmin(np.abs(self.grid.z - self.z_min)),
+        )
+        self.idx_e = (
+            np.argmin(np.abs(self.grid.x - self.x_max)),
+            np.argmin(np.abs(self.grid.y - self.y_max)),
+            np.argmin(np.abs(self.grid.z - self.z_max)),
+        )
+
+        dx, dy, dz = self.grid.spacing
+        dt = self.grid.dt
+        c_s = self.capacitance
+
+        if self.direction == Direction.X:
+            i_s = slice(self.idx_s[0], self.idx_e[0])
+            j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+            k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
+            term = (2*c_s*dx) / (dy*dz)
+        elif self.direction == Direction.Y:
+            i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
+            j_s = slice(self.idx_s[1], self.idx_e[1])
+            k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
+            term = (2*c_s*dy) / (dx*dz)
+        else:
+            i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
+            j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+            k_s = slice(self.idx_s[2], self.idx_e[2])
+            term = (2*c_s*dz) / (dx*dy)
+
+        eps = self.grid.eps_r[i_s, j_s, k_s, self.direction.value] * EPS_0
+        sigma_e = self.grid.sigma_e[i_s, j_s, k_s, self.direction.value]
+
+        self.grid.c_ee[i_s, j_s, k_s, self.direction.value] = \
+                (2*eps - dt*sigma_e + term) / (2*eps + dt*sigma_e + term)
+        self.grid.c_eh[i_s, j_s, k_s, self.direction.value] = \
+                (2*dt) / (2*eps + dt*sigma_e + term)
 
 
 class Inductor(LumpedElement):
