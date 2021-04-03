@@ -21,7 +21,7 @@ class Waveform(ABC):
 
     def __call__(self, time: Union[float,
                                    np.ndarray]) -> Union[float, np.ndarray]:
-        """Implement call method."""
+        """Call a waveform function."""
         return self.func()(time)
 
     def plot(self, time: np.ndarray):
@@ -34,10 +34,24 @@ class Waveform(ABC):
 
 
 class GaussianWaveform(Waveform):
-    """Represent a gaussian waveform to be attached to a source."""
+    """
+    Model of a gaussian waveform.
 
-    def __init__(self, tau: float, t_0: float, amplitude: float = 1):
-        """Represent a A*e^(-(t-t_0)/tau^2) function."""
+    Represent a function ``A*exp(-(t-t0)^2/tau^2)``.
+    This model should be attached to a source.
+
+    Parameters
+    ----------
+    t_0 : float
+        Initial time.
+    tau : float
+        Tau parameter.
+    amplitude : float
+        Amplitude.
+    """
+
+    def __init__(self, t_0: float, tau: float, amplitude: float = 1):
+        """Initialize waveform."""
         super().__init__()
         self.tau = tau
         self.t_0 = t_0
@@ -53,12 +67,29 @@ class GaussianWaveform(Waveform):
 
 
 class SineWaveform(Waveform):
-    """Represent a sine waveform to be attached to a source."""
+    """
+    Model of a sine waveform.
 
-    def __init__(self, freq: float, offset: float, amplitude: float = 1):
-        """Represent a A*sin(2*pi*f*t+offset)function."""
+    Represent a function ``A*sin(2*pi*freq*t-offset)``
+    This model should be attached to a source.
+
+    Parameters
+    ----------
+    frequency : float
+        Frequency [Hz].
+    offset : float
+        Phase offset.
+    amplitude : float
+        Amplitude.
+    """
+
+    def __init__(self,
+                 frequency: float,
+                 offset: float = 0,
+                 amplitude: float = 1):
+        """Initialize waveform."""
         super().__init__()
-        self.freq = freq
+        self.freq = frequency
         self.offset = offset
         self.amp = amplitude
 
@@ -68,24 +99,36 @@ class SineWaveform(Waveform):
         def wrap(time: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
             """Wrap function."""
             return self.amp * \
-                    np.sin(2 * np.pi * self.freq * time + self.offset)
+                    np.sin(2 * np.pi * self.freq * time - self.offset)
 
         return wrap
 
 
 class StepWaveform(Waveform):
-    """Represent a sine waveform to be attached to a source."""
+    """
+    Model of a step waveform.
+
+    Represent a function ``A*step(t-t0)``.
+    This model should be attached to a source.
+
+    Parameters
+    ----------
+    t_0 : float
+        Initial time.
+    amplitude : float
+        Amplitude.
+    """
 
     def __init__(self, t_0: float, amplitude: float = 1):
-        """Represent a A*sin(2*pi*f*t+offset)function."""
+        """Initialize waveform."""
         super().__init__()
         self.t_0 = t_0
         self.amp = amplitude
 
     def func(self):
-        """Return a gaussian waveform function."""
+        """Return a step waveform function."""
 
         def wrap(time: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
-            return np.heaviside(time - self.t_0, 1)
+            return self.amp * np.heaviside(time - self.t_0, 1)
 
         return wrap

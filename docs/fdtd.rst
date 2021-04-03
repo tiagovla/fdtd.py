@@ -62,6 +62,21 @@ Impressed Magnetic Current Source
 .. autoclass:: ImpressedMagneticCurrentSource
 
 
+Waveforms
+------------------
+
+Sine Waveform
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: SineWaveform
+
+Step Waveform
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: StepWaveform
+
+Gaussian Waveform
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: GaussianWaveform
+
 Detectors
 ------------------
 
@@ -83,8 +98,8 @@ Boundaries
 
 Periodic Boundary
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: PeriodicBlochBoundary
+.. autoclass:: PeriodicBoundary
 
 Periodic Bloch Boundary
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: PeriodicBoundary
+.. autoclass:: PeriodicBlochBoundary

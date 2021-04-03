@@ -1,10 +1,9 @@
 """This module implements boundaries."""
-from typing import Tuple, Union
+from typing import Tuple
 
 import numpy as np
 
 from .bases import FDTDElementBase
-from .utils import Direction
 
 
 class Boundary(FDTDElementBase):

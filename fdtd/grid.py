@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
 from tqdm import tqdm
 
 from .boundaries import Boundary
