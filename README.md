@@ -19,8 +19,9 @@ pip install fdtd.py
 
 """Voltage source + resistor example."""
 
-from fdtd import Brick, Grid, Material, Resistor, SineWaveform, VoltageDetector
+from fdtd import Brick, Grid, Material, Resistor, SineWaveform
 from fdtd import VoltageSource as VSource
+from fdtd import VoltageDetector as VDetector
 
 print("Loading materials...")
 Material.load("materials.json")
@@ -36,7 +37,7 @@ v_source = VSource(*(4e-3, 2e-3, 4e-3),
                    waveform=SineWaveform(frequency=1e9),
                    resistance=50)
 resistor = Resistor(*(4e-3, 8e-3, 4e-3), *(6e-3, 8e-3, 8e-3), 50)
-v_detector = VoltageDetector(*(4e-3, 5e-3, 4e-3),
+v_detector = VDetector(*(4e-3, 5e-3, 4e-3),
                              *(6e-3, 5e-3, 8e-3),
                              plot=True)
 
