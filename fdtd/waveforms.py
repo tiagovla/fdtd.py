@@ -119,7 +119,7 @@ class StepWaveform(Waveform):
         Amplitude.
     """
 
-    def __init__(self, t_0: float, amplitude: float = 1):
+    def __init__(self, t_0: float = 0, amplitude: float = 1):
         """Initialize waveform."""
         super().__init__()
         self.t_0 = t_0

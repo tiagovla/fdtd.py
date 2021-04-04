@@ -3,15 +3,15 @@ from __future__ import annotations
 
 import logging
 from functools import partial
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 
 from .bases import FDTDElementBase
 from .constants import FREESPACE_PERMITTIVITY as EPS_0
-from .constants import PI
 from .constants import SPEED_LIGHT as C
 from .utils import BoundingBox, Direction
+from .waveforms import Waveform
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +33,10 @@ class Source(FDTDElementBase):
         Maximum y coordinate of the bounding box containing the source.
     z_max : float
         Maximum z coordinate of the bounding box containing the source.
+    waveform : Union[Waveform, Callable]
+        Waveform type.
     resistance : float
         Internal resistance of the source.
-    waveform_type: str
-        Waveform type.
     name : Optional[str]
         Name of the source.
     direction : Direction
@@ -51,8 +51,8 @@ class Source(FDTDElementBase):
         x_max: float,
         y_max: float,
         z_max: float,
+        waveform: Union[Waveform, Callable],
         resistance: float = 50,
-        waveform_type: str = "unit_step",
         name: Optional[str] = None,
         direction: Direction = Direction.Z,
     ):
@@ -65,7 +65,7 @@ class Source(FDTDElementBase):
         self.y_max = y_max
         self.z_max = z_max
         self.resistance = resistance
-        self.waveform_type = waveform_type
+        self.waveform = waveform
         self.bounding_box = BoundingBox(x_min, x_max, y_min, y_max, z_min,
                                         z_max)
         self.direction = direction
@@ -102,7 +102,7 @@ class Source(FDTDElementBase):
     def __repr__(self):
         """Dev. string representation."""
         return (f"{self.__class__.__name__}"
-                f"[name={self.name}, waveform_type={self.waveform_type}, "
+                f"[name={self.name}, waveform={self.waveform}, "
                 f"x_min={self.x_min}, y_min={self.y_min}, z_min={self.z_min}, "
                 f"x_max={self.x_max}, y_max={self.y_max}, z_max={self.z_max}]")
 
@@ -127,10 +127,10 @@ class ImpressedMagneticCurrentSource(Source):
         Maximum y coordinate of the bounding box containing the source.
     z_max : float
         Maximum z coordinate of the bounding box containing the source.
+    waveform : Union[Waveform, Callable]
+        Waveform type.
     resistance : float
         Internal resistance of the source.
-    waveform_type: str
-        Waveform type.
     name : Optional[str]
         Name of the source.
     direction : Direction
@@ -201,10 +201,10 @@ class ImpressedElectricCurrentSource(Source):
         Maximum y coordinate of the bounding box containing the source.
     z_max : float
         Maximum z coordinate of the bounding box containing the source.
+    waveform : Union[Waveform, Callable]
+        Waveform type.
     resistance : float
         Internal resistance of the source.
-    waveform_type: str
-        Waveform type.
     name : Optional[str]
         Name of the source.
     direction : Direction
@@ -275,10 +275,10 @@ class EFieldSource(Source):
         Maximum y coordinate of the bounding box containing the source.
     z_max : float
         Maximum z coordinate of the bounding box containing the source.
+    waveform : Union[Waveform, Callable]
+        Waveform type.
     resistance : float
         Internal resistance of the source.
-    waveform_type: str
-        Waveform type.
     name : Optional[str]
         Name of the source.
     direction : Direction
@@ -347,10 +347,10 @@ class VoltageSource(Source):
         Maximum y coordinate of the bounding box containing the source.
     z_max : float
         Maximum z coordinate of the bounding box containing the source.
+    waveform : Union[Waveform, Callable]
+        Waveform type.
     resistance : float
         Internal resistance of the source.
-    waveform_type: str
-        Waveform type.
     name : Optional[str]
         Name of the source.
     direction : Direction
@@ -359,14 +359,7 @@ class VoltageSource(Source):
 
     def update_E(self):
         """Update field."""
-        if self.grid.current_time_step > 20:
-            # Vs = np.sin(2 * PI * 1e9 *
-            #             (self.grid.current_time - 50 * self.grid.dt))
-            Vs = 1
-        else:
-            Vs = 0
-        # Vs = 0 if self.grid.current_time_step < 50 else 1
-        Vs *= self._v_f
+        Vs = self._v_f * self.waveform(self.grid.current_time)
 
         if self.c_v is not None:
             if self.direction == Direction.X:
@@ -392,13 +385,13 @@ class VoltageSource(Source):
         dx, dy, dz = self.grid.spacing
         dt = self.grid.dt
         r_s = self.resistance
-        term = (dt*dz) / (r_s*dx*dy)
 
         if self.direction == Direction.X:
             self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0])
             self.j_s = j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             self.k_s = k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
 
+            term = (dt*dx) / (r_s*dy*dz)
             eps = self.grid.eps_r[i_s, j_s, k_s, 0] * EPS_0
             sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 0]
 
@@ -412,6 +405,7 @@ class VoltageSource(Source):
             self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0])
             self.j_s = j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             self.k_s = k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
+            term = (dt*dy) / (r_s*dx*dz)
 
             eps = self.grid.eps_r[i_s, j_s, k_s, 1] * EPS_0
             sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 1]
@@ -426,6 +420,7 @@ class VoltageSource(Source):
             self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
             self.j_s = j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             self.k_s = k_s = slice(self.idx_s[2], self.idx_e[2])
+            term = (dt*dz) / (r_s*dx*dy)
 
             self._v_f = 1 / (e[2] - s[2])
             self._r_f = (e[0] - s[0] + 1) * (e[1] - s[1] + 1) * self._v_f

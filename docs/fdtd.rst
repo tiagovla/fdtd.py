@@ -77,6 +77,16 @@ Gaussian Waveform
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: GaussianWaveform
 
+Custom Waveform
+~~~~~~~~~~~~~~~~~~
+Waveforms can also be custom ``callable`` functions:
+
+.. code-block:: python
+
+    def waveform(time: float | numpy.ndarray):
+    """Square wavefunction."""
+        return time**2 
+
 Detectors
 ------------------
 
