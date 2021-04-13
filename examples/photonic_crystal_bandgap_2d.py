@@ -14,16 +14,17 @@ from fdtd.constants import SPEED_LIGHT as C
 from fdtd.objects import Sphere
 from fdtd.sources import ImpressedElectricCurrentSource as JSource
 from fdtd.sources import ImpressedMagneticCurrentSource as MSource
+from fdtd.waveforms import GaussianWaveform
 
 logger = logging.getLogger("fdtd")
 
 print("Loading materials...")
-Material.load("materials.json")
+# Material.load("materials.json")
 
 print("Defining initial parameters...")
-a = 1e-6  #unit cell size
-n = 64  #grid 64x64
-r = 0.2 * a  #cylinder radius
+a = 1e-6  # unit cell size
+n = 64  # grid 64x64
+r = 0.2 * a  # cylinder radius
 
 print("Creating grid...")
 grid_tm = Grid(shape=(n, n, 1), spacing=(1/n) * a)
@@ -39,8 +40,12 @@ def rpoints():
     return (px, py, 0, px, py, 0)
 
 
-j_sources = [JSource(*rpoints()) for _ in range(5)]
-m_sources = [MSource(*rpoints()) for _ in range(5)]
+tau = 20 * (a/20) / (2*C)
+t_0 = 4.5 * tau
+g_wf = GaussianWaveform(t_0=t_0, tau=tau)
+
+j_sources = [JSource(*rpoints(), waveform=g_wf) for _ in range(5)]
+m_sources = [MSource(*rpoints(), waveform=g_wf) for _ in range(5)]
 e_detectors = [EFieldDetector(*rpoints()) for _ in range(5)]
 h_detectors = [HFieldDetector(*rpoints()) for _ in range(5)]
 
