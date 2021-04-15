@@ -139,10 +139,7 @@ class ImpressedMagneticCurrentSource(Source):
 
     def update_H(self):
         """Update field."""
-        nc = 20
-        tau = (nc * np.max([self.grid.dx, self.grid.dy])) / (2*C)
-        t_0 = 4.5 * tau
-        source_value = np.exp(-(((self.grid.current_time - t_0) / tau)**2))
+        source_value = self.waveform(self.grid.current_time)
         self.grid.H[self.i_s, self.j_s, self.k_s, self.direction.value] += (
             -self.grid.c_he[self.i_s, self.j_s, self.k_s, self.direction.value]
             * source_value)
@@ -213,10 +210,7 @@ class ImpressedElectricCurrentSource(Source):
 
     def update_E(self):
         """Update field."""
-        nc = 20
-        tau = (nc * np.max([self.grid.dx, self.grid.dy])) / (2*C)
-        t_0 = 4.5 * tau
-        source_value = np.exp(-(((self.grid.current_time - t_0) / tau)**2))
+        source_value = self.waveform(self.grid.current_time)
         self.grid.E[self.i_s, self.j_s, self.k_s, self.direction.value] += (
             -self.grid.c_eh[self.i_s, self.j_s, self.k_s, self.direction.value]
             * source_value)
@@ -287,10 +281,7 @@ class EFieldSource(Source):
 
     def update_E(self):
         """Update field."""
-        nc = 20
-        tau = (nc * np.max([self.grid.dx, self.grid.dy])) / (2*C)
-        t_0 = 4.5 * tau
-        E_s = np.exp(-(((self.grid.current_time - t_0) / tau)**2))
+        E_s = self.waveform(self.grid.current_time)
         self.grid.E[self.i_s, self.j_s, self.k_s, self.direction.value] += E_s
 
     def attach_to_grid(self):
