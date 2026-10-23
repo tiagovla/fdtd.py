@@ -139,7 +139,7 @@ class ImpressedMagneticCurrentSource(Source):
 
     def update_H(self):
         """Update field."""
-        source_value = self.waveform(self.grid.current_time)
+        source_value = self.waveform(self.grid.current_time - self.grid.dt / 2)
         self.grid.H[self.i_s, self.j_s, self.k_s, self.direction.value] += (
             -self.grid.c_he[self.i_s, self.j_s, self.k_s, self.direction.value]
             * source_value)
@@ -210,7 +210,7 @@ class ImpressedElectricCurrentSource(Source):
 
     def update_E(self):
         """Update field."""
-        source_value = self.waveform(self.grid.current_time)
+        source_value = self.waveform(self.grid.current_time - self.grid.dt / 2)
         self.grid.E[self.i_s, self.j_s, self.k_s, self.direction.value] += (
             -self.grid.c_eh[self.i_s, self.j_s, self.k_s, self.direction.value]
             * source_value)
@@ -350,7 +350,7 @@ class VoltageSource(Source):
 
     def update_E(self):
         """Update field."""
-        Vs = self._v_f * self.waveform(self.grid.current_time)
+        Vs = self._v_f * self.waveform(self.grid.current_time - self.grid.dt / 2)
 
         if self.c_v is not None:
             if self.direction == Direction.X:
@@ -376,6 +376,11 @@ class VoltageSource(Source):
         dx, dy, dz = self.grid.spacing
         dt = self.grid.dt
         r_s = self.resistance
+        if self.idx_e[self.direction.value] <= self.idx_s[self.direction.value]:
+            raise ValueError("Voltage source must span at least one field edge.")
+        if not np.isfinite(r_s) or r_s < 0:
+            raise ValueError("Source resistance must be finite and nonnegative.")
+        r_s = max(r_s, 1e-20)
 
         if self.direction == Direction.X:
             self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0])
@@ -393,7 +398,7 @@ class VoltageSource(Source):
                     (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
             self.grid.c_eh[i_s, j_s, k_s, 0] = \
                     (2*dt) / (2*eps + dt*sigma_e + term)
-            self.c_v = (2*dt) / (2*eps + dt*sigma_e + term) / (r_s*dy*dz)
+            self.c_v = -(2*dt) / (2*eps + dt*sigma_e + term) / (r_s*dy*dz)
 
         elif self.direction == Direction.Y:
             self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
@@ -411,7 +416,7 @@ class VoltageSource(Source):
                     (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
             self.grid.c_eh[i_s, j_s, k_s, 1] = \
                     (2*dt) / (2*eps + dt*sigma_e + term)
-            self.c_v = (2*dt) / (2*eps + dt*sigma_e + term) / (r_s*dx*dz)
+            self.c_v = -(2*dt) / (2*eps + dt*sigma_e + term) / (r_s*dx*dz)
 
         else:
             self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
