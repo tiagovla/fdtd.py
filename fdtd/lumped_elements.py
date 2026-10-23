@@ -143,7 +143,15 @@ class Resistor(LumpedElement):
 
         dx, dy, dz = self.grid.spacing
         dt = self.grid.dt
-        r_s = self.resistance
+        counts = np.subtract(self.idx_e, self.idx_s)
+        series = counts[self.direction.value]
+        parallel = np.prod([counts[d] + 1 for d in range(3)
+                            if d != self.direction.value])
+        if series <= 0:
+            raise ValueError("Resistor must span at least one field edge.")
+        if not np.isfinite(self.resistance) or self.resistance <= 0:
+            raise ValueError("Resistance must be finite and positive.")
+        r_s = self.resistance * parallel / series
 
         if self.direction == Direction.X:
             i_s = slice(self.idx_s[0], self.idx_e[0])
@@ -230,7 +238,15 @@ class Capacitor(LumpedElement):
 
         dx, dy, dz = self.grid.spacing
         dt = self.grid.dt
-        c_s = self.capacitance
+        counts = np.subtract(self.idx_e, self.idx_s)
+        series = counts[self.direction.value]
+        parallel = np.prod([counts[d] + 1 for d in range(3)
+                            if d != self.direction.value])
+        if series <= 0:
+            raise ValueError("Capacitor must span at least one field edge.")
+        if not np.isfinite(self.capacitance) or self.capacitance <= 0:
+            raise ValueError("Capacitance must be finite and positive.")
+        c_s = self.capacitance * series / parallel
 
         if self.direction == Direction.X:
             i_s = slice(self.idx_s[0], self.idx_e[0])
