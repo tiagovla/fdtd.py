@@ -1,359 +1,170 @@
-"""This module implement detectors."""
-from __future__ import annotations
-
-import logging
-from functools import partial
-from typing import Optional, Tuple
+"""Field and voltage sampling on a staggered grid."""
+from abc import abstractmethod
+from itertools import product
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from .bases import FDTDElementBase
-from .utils import Direction
-
-logger = logging.getLogger(__name__)
+from .utils import BoundingBox, Direction
 
 
 class Detector(FDTDElementBase):
-    """Base class for all detectors.
+    """Record a component over a bounding box, optionally interpolated to nodes."""
 
-    Parameters
-    ----------
-    x_min : float
-        Minimum x coordinate of the bounding box containing the detector.
-    y_min : float
-        Minimum y coordinate of the bounding box containing the detector.
-    z_min : float
-        Minimum z coordinate of the bounding box containing the detector.
-    x_max : float
-        Maximum x coordinate of the bounding box containing the detector.
-    y_max : float
-        Maximum y coordinate of the bounding box containing the detector.
-    z_max : float
-        Maximum z coordinate of the bounding box containing the detector.
-    name : Optional[str]
-        Name of the source.
-    plot : bool
-        Flag to enable plotting.
-    """
+    _field_name = "E"
+    _voltage = False
 
-    def __init__(
-        self,
-        x_min: float,
-        y_min: float,
-        z_min: float,
-        x_max: float,
-        y_max: float,
-        z_max: float,
-        name: Optional[str] = None,
-        direction: Direction = Direction.Z,
-        plot: bool = False,
-    ):
-        """Initialize the object."""
+    def __init__(self, x_min, y_min, z_min, x_max, y_max, z_max,
+                 name=None, direction=Direction.Z, plot=False, *, interpolate=False):
         super().__init__()
-        self.x_min = x_min
-        self.y_min = y_min
-        self.z_min = z_min
-        self.x_max = x_max
-        self.y_max = y_max
-        self.z_max = z_max
-        self.name = name
+        self.bounding_box = BoundingBox(x_min, x_max, y_min, y_max, z_min, z_max)
+        self.x_min, self.y_min, self.z_min = x_min, y_min, z_min
+        self.x_max, self.y_max, self.z_max = x_max, y_max, z_max
+        self.name = name or self._create_new_name()
+        if not isinstance(direction, Direction):
+            raise ValueError("direction must be a Direction value")
         self.direction = direction
-        self.captured: Optional[np.ndarray] = None
+        self.interpolate = interpolate
         self._plot = plot
-
-        self.i_s: Optional[slice] = None
-        self.j_s: Optional[slice] = None
-        self.k_s: Optional[slice] = None
-        self.idx_s: Optional[Tuple] = None
-        self.idx_e: Optional[Tuple] = None
+        self.captured = None
 
     def reset(self):
-        """Discard samples and derived results from the previous simulation."""
         self.captured = None
         for name in ("time", "freq", "values_time", "values_freq"):
             self.__dict__.pop(name, None)
 
-    def _allocate_capture(self, shape, dtype):
-        """Grow storage while preserving samples from preceding runs."""
+    @abstractmethod
+    def _sample(self):
+        """Return the next scalar or spatial array of samples."""
+
+    def attach_to_grid(self):
+        if self.grid is None:
+            raise RuntimeError("Register the detector with a grid before preparing it.")
+        coordinates = (self.grid.x, self.grid.y, self.grid.z)
+        self.idx_s = tuple(int(np.argmin(abs(a - b))) for a, b in zip(
+            coordinates, (self.x_min, self.y_min, self.z_min)))
+        self.idx_e = tuple(int(np.argmin(abs(a - b))) for a, b in zip(
+            coordinates, (self.x_max, self.y_max, self.z_max)))
+        axis = self.direction.value
+        self.slices = tuple(slice(s, e + (0 if self._voltage and d == axis else 1))
+                            for d, (s, e) in enumerate(zip(self.idx_s, self.idx_e)))
+        self.i_s, self.j_s, self.k_s = self.slices
+        self.size = tuple(s.stop - s.start for s in self.slices)
+        if any(n <= 0 for n in self.size):
+            raise ValueError("Voltage detector must span at least one field edge.")
+        self.c_v = -self.grid.spacing[axis] / np.prod(
+            [self.size[d] for d in range(3) if d != axis])
+        shape = (() if self._voltage else self.size) + (self.grid.n_steps,)
         previous = self.captured
-        self.captured = np.zeros(shape, dtype=dtype)
+        self.captured = np.zeros(shape, dtype=getattr(self.grid, self._field_name).dtype)
         if previous is not None:
             count = min(previous.shape[-1], shape[-1])
             self.captured[..., :count] = previous[..., :count]
+        offset = 0.5 if self._field_name == "H" else 1.0
+        self.time = (np.arange(self.grid.n_steps) + offset) * self.grid.dt
+
+    def _field_values(self):
+        field = getattr(self.grid, self._field_name)[..., self.direction.value]
+        if not self.interpolate:
+            return field[self.slices]
+        axes = ([self.direction.value] if self._field_name == "E" else
+                [d for d in range(3) if d != self.direction.value])
+        values = np.zeros(self.size, dtype=field.dtype)
+        for shifts in product((0, 1), repeat=len(axes)):
+            indices = [np.arange(s.start, s.stop) for s in self.slices]
+            for axis, shift in zip(axes, shifts):
+                indices[axis] = np.maximum(indices[axis] - shift, 0)
+            values += field[np.ix_(*indices)] / (2 ** len(axes))
+        return values
 
     def update(self):
-        """Update detectors."""
+        if self.captured is None:
+            raise RuntimeError("Prepare detector storage with Grid.run() before sampling.")
+        step = self.grid.current_time_step
+        if step >= self.captured.shape[-1]:
+            raise RuntimeError("Detector storage exhausted; advance with Grid.run().")
+        self.captured[..., step] = self._sample()
 
-    def attach_to_grid(self):
-        """Attach object to grid."""
+    def post_process(self, aggregation=None, normalization="amplitude", positive_only=True):
+        """Transform the time axis; return amplitudes or a time-integral spectrum."""
+        if self.captured is None or not self.captured.shape[-1]:
+            raise RuntimeError("No detector samples are available.")
+        count = min(self.grid.current_time_step, self.captured.shape[-1])
+        if not count:
+            raise RuntimeError("No detector samples are available.")
+        values = self.captured[..., :count]
+        if aggregation not in (None, "mean", "sum"):
+            raise ValueError("aggregation must be None, 'mean', or 'sum'")
+        if values.ndim > 1:
+            axes = tuple(range(values.ndim - 1))
+            if aggregation == "mean":
+                values = values.mean(axis=axes)
+            elif aggregation == "sum":
+                values = values.sum(axis=axes)
+            elif np.prod(values.shape[:-1]) == 1:
+                values = values.reshape(count)
+        self.values_time = values
+        self.freq = np.fft.fftfreq(count, self.grid.dt)
+        spectrum = np.fft.fft(values, axis=-1)
+        if normalization == "amplitude":
+            spectrum /= count
+        elif normalization == "integral":
+            spectrum *= self.grid.dt
+        elif normalization != "none":
+            raise ValueError("normalization must be 'amplitude', 'integral', or 'none'")
+        spectrum *= np.exp(-2j * np.pi * self.freq * self.time[0])
+        if positive_only:
+            indices = self.freq >= 0
+            self.freq = self.freq[indices]
+            spectrum = spectrum[..., indices]
+        self.values_freq = spectrum
+        return self.freq, self.values_freq
+
+    def pos_processing(self, **kwargs):
+        """Compatibility spelling for post_process()."""
+        return self.post_process(**kwargs)
+
+    def plot(self, component="real"):
+        if not self._plot:
+            return
+        if self.captured is None:
+            raise RuntimeError("No detector samples are available.")
+        transforms = {"real": np.real, "imag": np.imag,
+                      "magnitude": np.abs, "phase": np.angle}
+        if component not in transforms:
+            raise ValueError("component must be real, imag, magnitude, or phase")
+        count = min(self.grid.current_time_step, self.captured.shape[-1])
+        values = transforms[component](self.captured[..., :count])
+        _, ax = plt.subplots()
+        ax.plot(self.time[:count], values.reshape(-1, count).T)
+        ax.set_xlabel("Time [s]")
+        plt.show()
 
     def plot_3d(self, ax, alpha=0.5):
-        """Plot a source and attach to an axis."""
-
-    def plot(self):
-        """Plot."""
+        x, y, z = np.meshgrid([self.x_min, self.x_max],
+                              [self.y_min, self.y_max], [self.z_min, self.z_max])
+        for dim in range(3):
+            for edge in (0, -1):
+                index = [slice(None)] * 3
+                index[dim] = edge
+                index = tuple(index)
+                ax.plot_surface(x[index], y[index], z[index], alpha=alpha, color="#B0BF00")
 
 
 class VoltageDetector(Detector):
-    """Model of a voltage detector.
+    """Negative electric line integral averaged over parallel paths."""
 
-    Parameters
-    ----------
-    x_min : float
-        Minimum x coordinate of the bounding box containing the detector.
-    y_min : float
-        Minimum y coordinate of the bounding box containing the detector.
-    z_min : float
-        Minimum z coordinate of the bounding box containing the detector.
-    x_max : float
-        Maximum x coordinate of the bounding box containing the detector.
-    y_max : float
-        Maximum y coordinate of the bounding box containing the detector.
-    z_max : float
-        Maximum z coordinate of the bounding box containing the detector.
-    name : Optional[str]
-        Name of the source.
-    plot : bool
-        Flag to enable plotting.
-    """
+    _voltage = True
 
-    def attach_to_grid(self):
-        """Attach object to grid."""
-        s = self.idx_s = (
-            np.argmin(np.abs(self.grid.x - self.x_min)),
-            np.argmin(np.abs(self.grid.y - self.y_min)),
-            np.argmin(np.abs(self.grid.z - self.z_min)),
-        )
-        e = self.idx_e = (
-            np.argmin(np.abs(self.grid.x - self.x_max)),
-            np.argmin(np.abs(self.grid.y - self.y_max)),
-            np.argmin(np.abs(self.grid.z - self.z_max)),
-        )
-
-        dx, dy, dz = self.grid.spacing
-
-        if self.direction == Direction.X:
-            self.i_s = slice(self.idx_s[0], self.idx_e[0])
-            self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
-            self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-            self.c_v = -dx / ((e[1] - s[1] + 1) * (e[2] - s[2] + 1))
-
-        elif self.direction == Direction.Y:
-            self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
-            self.j_s = slice(self.idx_s[1], self.idx_e[1])
-            self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-            self.c_v = -dy / ((e[2] - s[2] + 1) * (e[0] - s[0] + 1))
-
-        else:
-            self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
-            self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
-            self.k_s = slice(self.idx_s[2], self.idx_e[2])
-            self.c_v = -dz / ((e[0] - s[0] + 1) * (e[1] - s[1] + 1))
-
-        self._allocate_capture((self.grid.n_steps,), self.grid.E.dtype)
-
-    def plot_3d(self, ax, alpha: float = 0.5):
-        """Plot a brick and attach to an axis."""
-        X, Y, Z = np.meshgrid(
-            [self.x_min, self.x_max],
-            [self.y_min, self.y_max],
-            [self.z_min, self.z_max],
-        )
-        plot = partial(ax.plot_surface, alpha=alpha, color="#B0BF00")
-
-        plot(X[:, :, 0], Y[:, :, 0], Z[:, :, 0])
-        plot(X[:, :, -1], Y[:, :, -1], Z[:, :, -1])
-        plot(X[:, 0, :], Y[:, 0, :], Z[:, 0, :])
-        plot(X[:, -1, :], Y[:, -1, :], Z[:, -1, :])
-        plot(X[0, :, :], Y[0, :, :], Z[0, :, :])
-        plot(X[-1, :, :], Y[-1, :, :], Z[-1, :, :])
-
-    def plot(self):
-        """Plot."""
-        if self._plot:
-            fig = plt.figure()
-            ax = plt.subplot(111)
-            ax.plot(self.captured)
-            plt.show()
-
-    def update(self):
-        """Capture voltage."""
-        self.captured[self.grid.current_time_step] = self.c_v * np.sum(
-            self.grid.E[self.i_s, self.j_s, self.k_s,
-                        self.direction.value])
-
-
-class HFieldDetector(Detector):
-    """Model of a magnetic field detector.
-
-    Parameters
-    ----------
-    x_min : float
-        Minimum x coordinate of the bounding box containing the detector.
-    y_min : float
-        Minimum y coordinate of the bounding box containing the detector.
-    z_min : float
-        Minimum z coordinate of the bounding box containing the detector.
-    x_max : float
-        Maximum x coordinate of the bounding box containing the detector.
-    y_max : float
-        Maximum y coordinate of the bounding box containing the detector.
-    z_max : float
-        Maximum z coordinate of the bounding box containing the detector.
-    name : Optional[str]
-        Name of the source.
-    plot : bool
-        Flag to enable plotting.
-    """
-
-    def attach_to_grid(self):
-        """Attach object to grid."""
-        s = self.idx_s = (
-            np.argmin(np.abs(self.grid.x - self.x_min)),
-            np.argmin(np.abs(self.grid.y - self.y_min)),
-            np.argmin(np.abs(self.grid.z - self.z_min)),
-        )
-        e = self.idx_e = (
-            np.argmin(np.abs(self.grid.x - self.x_max)),
-            np.argmin(np.abs(self.grid.y - self.y_max)),
-            np.argmin(np.abs(self.grid.z - self.z_max)),
-        )
-        self.size = (e[0] - s[0] + 1, e[1] - s[1] + 1, e[2] - s[2] + 1)
-
-        self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
-        self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
-        self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-        self._allocate_capture(self.size + (self.grid.n_steps,), self.grid.H.dtype)
-        logger.debug(
-            f"EFieldDetector attached to {self.i_s}, {self.j_s} and {self.k_s}"
-        )
-
-    def plot_3d(self, ax, alpha: float = 0.5):
-        """Plot a brick and attach to an axis."""
-        X, Y, Z = np.meshgrid(
-            [self.x_min, self.x_max],
-            [self.y_min, self.y_max],
-            [self.z_min, self.z_max],
-        )
-        plot = partial(ax.plot_surface, alpha=alpha, color="#B0BF00")
-
-        plot(X[:, :, 0], Y[:, :, 0], Z[:, :, 0])
-        plot(X[:, :, -1], Y[:, :, -1], Z[:, :, -1])
-        plot(X[:, 0, :], Y[:, 0, :], Z[:, 0, :])
-        plot(X[:, -1, :], Y[:, -1, :], Z[:, -1, :])
-        plot(X[0, :, :], Y[0, :, :], Z[0, :, :])
-        plot(X[-1, :, :], Y[-1, :, :], Z[-1, :, :])
-
-    def plot(self):
-        """Plot."""
-        if not self._plot:
-            return
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        logger.debug(f"shape of captured {self.captured.shape}")
-        ax.plot(self.captured.flatten())
-        plt.show()
-
-    def pos_processing(self):
-        """Pos processing of results."""
-        self.values_time = self.captured.flatten()
-        self.time = self.grid.dt * np.arange(0, self.grid.n_steps)
-
-        # FFT:
-        N = len(self.values_time)
-        self.values_freq = np.fft.fft(self.values_time)[:N // 2] / N
-        self.freq = np.fft.fftfreq(N, self.grid.dt)[:N // 2]
-
-    def update(self):
-        """Capture H Field."""
-        self.captured[:, :, :, self.grid.current_time_step] = self.grid.H[
-            self.i_s, self.j_s, self.k_s, self.direction.value]
+    def _sample(self):
+        return self.c_v * np.sum(self.grid.E[self.slices + (self.direction.value,)])
 
 
 class EFieldDetector(Detector):
-    """Model of an electric field detector.
+    def _sample(self):
+        return self._field_values()
 
-    Parameters
-    ----------
-    x_min : float
-        Minimum x coordinate of the bounding box containing the detector.
-    y_min : float
-        Minimum y coordinate of the bounding box containing the detector.
-    z_min : float
-        Minimum z coordinate of the bounding box containing the detector.
-    x_max : float
-        Maximum x coordinate of the bounding box containing the detector.
-    y_max : float
-        Maximum y coordinate of the bounding box containing the detector.
-    z_max : float
-        Maximum z coordinate of the bounding box containing the detector.
-    name : Optional[str]
-        Name of the source.
-    plot : bool
-        Flag to enable plotting.
-    """
 
-    def attach_to_grid(self):
-        """Attach object to grid."""
-        s = self.idx_s = (
-            np.argmin(np.abs(self.grid.x - self.x_min)),
-            np.argmin(np.abs(self.grid.y - self.y_min)),
-            np.argmin(np.abs(self.grid.z - self.z_min)),
-        )
-        e = self.idx_e = (
-            np.argmin(np.abs(self.grid.x - self.x_max)),
-            np.argmin(np.abs(self.grid.y - self.y_max)),
-            np.argmin(np.abs(self.grid.z - self.z_max)),
-        )
-        self.size = (e[0] - s[0] + 1, e[1] - s[1] + 1, e[2] - s[2] + 1)
-
-        self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
-        self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
-        self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-        self._allocate_capture(self.size + (self.grid.n_steps,), self.grid.E.dtype)
-        logger.debug(
-            f"EFieldDetector attached to {self.i_s}, {self.j_s} and {self.k_s}"
-        )
-
-    def plot_3d(self, ax, alpha: float = 0.5):
-        """Plot a brick and attach to an axis."""
-        X, Y, Z = np.meshgrid(
-            [self.x_min, self.x_max],
-            [self.y_min, self.y_max],
-            [self.z_min, self.z_max],
-        )
-        plot = partial(ax.plot_surface, alpha=alpha, color="#B0BF00")
-
-        plot(X[:, :, 0], Y[:, :, 0], Z[:, :, 0])
-        plot(X[:, :, -1], Y[:, :, -1], Z[:, :, -1])
-        plot(X[:, 0, :], Y[:, 0, :], Z[:, 0, :])
-        plot(X[:, -1, :], Y[:, -1, :], Z[:, -1, :])
-        plot(X[0, :, :], Y[0, :, :], Z[0, :, :])
-        plot(X[-1, :, :], Y[-1, :, :], Z[-1, :, :])
-
-    def plot(self):
-        """Plot."""
-        if not self._plot:
-            return
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        logger.debug(f"shape of captured {self.captured.shape}")
-        ax.plot(self.captured.flatten())
-        plt.show()
-
-    def pos_processing(self):
-        """Pos processing of results."""
-        self.values_time = self.captured.flatten()
-        self.time = self.grid.dt * np.arange(0, self.grid.n_steps)
-
-        N = len(self.values_time)
-        self.values_freq = np.fft.fft(self.values_time)[:N // 2] / N
-        self.freq = np.fft.fftfreq(N, self.grid.dt)[:N // 2]
-
-    def update(self):
-        """Capture E Field."""
-        self.captured[:, :, :, self.grid.current_time_step] = self.grid.E[
-            self.i_s, self.j_s, self.k_s, self.direction.value]
+class HFieldDetector(EFieldDetector):
+    _field_name = "H"
