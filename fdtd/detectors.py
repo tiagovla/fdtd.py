@@ -1,6 +1,8 @@
 """Field and voltage sampling on a staggered grid."""
 from abc import abstractmethod
 from itertools import product
+from math import prod
+from numbers import Integral
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,7 +18,8 @@ class Detector(FDTDElementBase):
     _voltage = False
 
     def __init__(self, x_min, y_min, z_min, x_max, y_max, z_max,
-                 name=None, direction=Direction.Z, plot=False, *, interpolate=False):
+                 name=None, direction=Direction.Z, plot=False, *, interpolate=False,
+                 sample_interval=1, reduction=None, max_memory_bytes=256*1024**2):
         super().__init__()
         self.bounding_box = BoundingBox(x_min, x_max, y_min, y_max, z_min, z_max)
         self.x_min, self.y_min, self.z_min = x_min, y_min, z_min
@@ -26,6 +29,15 @@ class Detector(FDTDElementBase):
             raise ValueError("direction must be a Direction value")
         self.direction = direction
         self.interpolate = interpolate
+        if not isinstance(sample_interval, Integral) or isinstance(sample_interval, bool) or sample_interval < 1:
+            raise ValueError("sample_interval must be a positive integer.")
+        if reduction not in (None, "mean", "sum"):
+            raise ValueError("reduction must be None, 'mean', or 'sum'.")
+        if max_memory_bytes is not None and (not isinstance(max_memory_bytes, Integral) or max_memory_bytes <= 0):
+            raise ValueError("max_memory_bytes must be a positive integer or None.")
+        self.sample_interval = int(sample_interval)
+        self.reduction = reduction
+        self.max_memory_bytes = max_memory_bytes
         self._plot = plot
         self.captured = None
 
@@ -55,14 +67,41 @@ class Detector(FDTDElementBase):
             raise ValueError("Voltage detector must span at least one field edge.")
         self.c_v = -self.grid.spacing[axis] / np.prod(
             [self.size[d] for d in range(3) if d != axis])
-        shape = (() if self._voltage else self.size) + (self.grid.n_steps,)
+        samples = (self.grid.n_steps + self.sample_interval - 1) // self.sample_interval
+        shape = (() if self._voltage or self.reduction is not None else self.size) + (samples,)
         previous = self.captured
-        self.captured = np.zeros(shape, dtype=getattr(self.grid, self._field_name).dtype)
+        dtype = getattr(self.grid, self._field_name).dtype
+        required = prod(shape) * dtype.itemsize + samples * 8
+        peak = required + (previous.nbytes if previous is not None else 0)
+        if self.max_memory_bytes is not None and peak > self.max_memory_bytes:
+            raise MemoryError(f"Detector {self.name} requires {peak:,} bytes; limit is "
+                              f"{self.max_memory_bytes:,}. Increase sample_interval, use reduction, "
+                              "or explicitly increase max_memory_bytes.")
+        self.captured = np.zeros(shape, dtype=dtype)
         if previous is not None:
             count = min(previous.shape[-1], shape[-1])
             self.captured[..., :count] = previous[..., :count]
         offset = 0.5 if self._field_name == "H" else 1.0
-        self.time = (np.arange(self.grid.n_steps) + offset) * self.grid.dt
+        self.time = (np.arange(0, self.grid.n_steps, self.sample_interval) + offset) * self.grid.dt
+
+    def estimate_memory(self, n_steps):
+        if self.grid is None:
+            raise RuntimeError("Register the detector before estimating its storage.")
+        size = []
+        for axis, (coords, lower, upper) in enumerate(zip(
+                (self.grid.x, self.grid.y, self.grid.z),
+                (self.x_min, self.y_min, self.z_min),
+                (self.x_max, self.y_max, self.z_max))):
+            length = int(np.argmin(abs(coords-upper))) - int(np.argmin(abs(coords-lower)))
+            size.append(length + (not self._voltage or axis != self.direction.value))
+        samples = (n_steps + self.sample_interval - 1) // self.sample_interval
+        points = 1 if self._voltage or self.reduction is not None else prod(size)
+        return samples * (points * getattr(self.grid, self._field_name).dtype.itemsize + 8)
+
+    @property
+    def sample_count(self):
+        return min(len(self.time), (self.grid.current_time_step + self.sample_interval - 1)
+                    // self.sample_interval)
 
     def _field_values(self):
         field = getattr(self.grid, self._field_name)[..., self.direction.value]
@@ -82,15 +121,21 @@ class Detector(FDTDElementBase):
         if self.captured is None:
             raise RuntimeError("Prepare detector storage with Grid.run() before sampling.")
         step = self.grid.current_time_step
-        if step >= self.captured.shape[-1]:
+        if step % self.sample_interval:
+            return
+        index = step // self.sample_interval
+        if index >= self.captured.shape[-1]:
             raise RuntimeError("Detector storage exhausted; advance with Grid.run().")
-        self.captured[..., step] = self._sample()
+        value = self._sample()
+        if not self._voltage and self.reduction is not None:
+            value = value.mean() if self.reduction == "mean" else value.sum()
+        self.captured[..., index] = value
 
     def post_process(self, aggregation=None, normalization="amplitude", positive_only=True):
         """Transform the time axis; return amplitudes or a time-integral spectrum."""
         if self.captured is None or not self.captured.shape[-1]:
             raise RuntimeError("No detector samples are available.")
-        count = min(self.grid.current_time_step, self.captured.shape[-1])
+        count = self.sample_count
         if not count:
             raise RuntimeError("No detector samples are available.")
         values = self.captured[..., :count]
@@ -105,12 +150,13 @@ class Detector(FDTDElementBase):
             elif np.prod(values.shape[:-1]) == 1:
                 values = values.reshape(count)
         self.values_time = values
-        self.freq = np.fft.fftfreq(count, self.grid.dt)
+        period = self.grid.dt * self.sample_interval
+        self.freq = np.fft.fftfreq(count, period)
         spectrum = np.fft.fft(values, axis=-1)
         if normalization == "amplitude":
             spectrum /= count
         elif normalization == "integral":
-            spectrum *= self.grid.dt
+            spectrum *= period
         elif normalization != "none":
             raise ValueError("normalization must be 'amplitude', 'integral', or 'none'")
         spectrum *= np.exp(-2j * np.pi * self.freq * self.time[0])
@@ -134,7 +180,9 @@ class Detector(FDTDElementBase):
                       "magnitude": np.abs, "phase": np.angle}
         if component not in transforms:
             raise ValueError("component must be real, imag, magnitude, or phase")
-        count = min(self.grid.current_time_step, self.captured.shape[-1])
+        count = self.sample_count
+        if not count:
+            return
         values = transforms[component](self.captured[..., :count])
         _, ax = plt.subplots()
         ax.plot(self.time[:count], values.reshape(-1, count).T)

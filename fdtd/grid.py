@@ -282,6 +282,12 @@ class Grid:
         for det in self.detectors:
             det.plot()
 
+    def estimate_memory(self, n_steps):
+        arrays = (self.E, self.H, self.cell_material, self.eps_r, self.mu_r,
+                  self.sigma_e, self.sigma_m, self.c_ee, self.c_eh, self.c_hh, self.c_he)
+        return sum(array.nbytes for array in arrays) + sum(
+            detector.estimate_memory(n_steps) for detector in self.detectors)
+
     def step(self):
         """Run a single step of the simulation."""
         if not self._prepared:

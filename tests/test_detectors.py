@@ -55,3 +55,28 @@ def test_interpolated_probe_uses_surrounding_staggered_components(kind, directio
     detector.attach_to_grid()
     detector.update()
     assert detector.captured.item() == pytest.approx(expected)
+
+
+def test_decimated_reduction_preserves_sampling_across_split_runs():
+    grid = Grid((4, 4, 4), 1e-3)
+    detector = EFieldDetector(0, 0, 0, 3e-3, 3e-3, 3e-3,
+                              sample_interval=3, reduction="mean")
+    grid.add(detector)
+    grid.run(4, progress=False)
+    grid.run(4, progress=False)
+    assert detector.captured.shape == (3,)
+    np.testing.assert_allclose(detector.time, np.array([1, 4, 7]) * grid.dt)
+    assert detector.sample_count == 3
+    detector.post_process()
+    assert detector.estimate_memory(8) == detector.captured.nbytes + detector.time.nbytes
+
+
+def test_large_capture_fails_before_allocating_storage():
+    grid = Grid((20, 20, 1), 1e-3)
+    detector = EFieldDetector(0, 0, 0, 19e-3, 19e-3, 0, max_memory_bytes=1024)
+    grid.add(detector)
+    assert grid.estimate_memory(100) > 1024
+    with pytest.raises(MemoryError, match="sample_interval"):
+        grid.run(100, progress=False)
+    assert detector.captured is None
+    assert grid.current_time_step == 0
