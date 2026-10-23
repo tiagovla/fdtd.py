@@ -93,6 +93,7 @@ class Grid:
         self.current_time_step: int = 0
         self.current_time: float = 0
         self.n_steps: int = 0
+        self._prepared = False
 
         # usefull auxiliary arrays:
         self.x_c: np.ndarray = self.dx * (0.5 + np.arange(0, self.Nx))
@@ -107,6 +108,12 @@ class Grid:
         self.current_time_step = 0
         self.current_time = 0
         self.n_steps = 0
+        self._prepared = False
+        self.E.fill(0)
+        self.H.fill(0)
+        for element in (*self.sources, *self.lumped_elements, *self.detectors,
+                        *self.boundaries):
+            element.reset()
 
         self.c_ee[:] = 0
         self.c_eh[:] = 0
@@ -254,20 +261,29 @@ class Grid:
 
         for det in self.detectors:
             det.attach_to_grid()
+        self._prepared = True
 
-    def run(self, n_steps: int = 1000, total_time: Optional[float] = None):
-        """Run simulation."""
-        if not total_time:
-            self.n_steps = n_steps
-        else:
-            self.n_steps = floor(total_time / self.dt)
+    def run(self, n_steps: int = 1000, total_time: Optional[float] = None,
+            *, restart: bool = False, progress: bool = True):
+        """Advance by n_steps (or total_time), retaining previous samples.
+
+        Use restart=True, or call reset(), to start again from zero fields.
+        """
+        if restart:
+            self.reset()
+        steps = n_steps if total_time is None else floor(total_time / self.dt)
+        self.n_steps = self.current_time_step + steps
 
         logger.info("Preparing sources, objects, detectors...")
-        self._prepare()
+        if not self._prepared:
+            self._prepare()
+        else:
+            for detector in self.detectors:
+                detector.attach_to_grid()
 
-        logger.info("Running simulation with {self.n_steps} steps...")
+        logger.info("Running simulation with %s steps...", steps)
 
-        for _ in tqdm(range(self.n_steps)):
+        for _ in tqdm(range(steps), disable=not progress):
             self.step()
 
         logger.info("Processing results...")
@@ -279,6 +295,10 @@ class Grid:
 
     def step(self):
         """Run a single step of the simulation."""
+        if not self._prepared:
+            self._prepare()
+        if self.detectors and self.current_time_step >= self.n_steps:
+            raise RuntimeError("Detector storage exhausted; advance with Grid.run().")
         self.update_H()
         for bc in self.boundaries:
             bc.update_H()
@@ -325,6 +345,7 @@ class Grid:
             self.detectors.append(elm)
         elif isinstance(elm, Boundary):
             self.boundaries.append(elm)
+        self._prepared = False
 
     def plot_planes(self) -> None:
         """Plot material."""

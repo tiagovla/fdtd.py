@@ -35,6 +35,9 @@ class FDTDElementBase(ABC):
     def attach_to_grid(self):
         """Attach object to grid."""
 
+    def reset(self):
+        """Clear dynamic state; stateless elements need no reset work."""
+
     def detach_from_grid(self):
         """Detach from grid."""
         if self.grid:

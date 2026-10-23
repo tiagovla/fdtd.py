@@ -68,6 +68,20 @@ class Detector(FDTDElementBase):
         self.idx_s: Optional[Tuple] = None
         self.idx_e: Optional[Tuple] = None
 
+    def reset(self):
+        """Discard samples and derived results from the previous simulation."""
+        self.captured = None
+        for name in ("time", "freq", "values_time", "values_freq"):
+            self.__dict__.pop(name, None)
+
+    def _allocate_capture(self, shape, dtype):
+        """Grow storage while preserving samples from preceding runs."""
+        previous = self.captured
+        self.captured = np.zeros(shape, dtype=dtype)
+        if previous is not None:
+            count = min(previous.shape[-1], shape[-1])
+            self.captured[..., :count] = previous[..., :count]
+
     def update(self):
         """Update detectors."""
 
@@ -137,7 +151,7 @@ class VoltageDetector(Detector):
             self.k_s = slice(self.idx_s[2], self.idx_e[2])
             self.c_v = -dz / ((e[0] - s[0] + 1) * (e[1] - s[1] + 1))
 
-        self.captured = np.zeros(self.grid.n_steps, dtype=self.grid.E.dtype)
+        self._allocate_capture((self.grid.n_steps,), self.grid.E.dtype)
 
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""
@@ -210,8 +224,7 @@ class HFieldDetector(Detector):
         self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
         self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
         self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-        self.captured = np.zeros(self.size + (self.grid.n_steps, ),
-                                 dtype=self.grid.H.dtype)
+        self._allocate_capture(self.size + (self.grid.n_steps,), self.grid.H.dtype)
         logger.debug(
             f"EFieldDetector attached to {self.i_s}, {self.j_s} and {self.k_s}"
         )
@@ -299,8 +312,7 @@ class EFieldDetector(Detector):
         self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
         self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
         self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-        self.captured = np.zeros(self.size + (self.grid.n_steps, ),
-                                 dtype=self.grid.E.dtype)
+        self._allocate_capture(self.size + (self.grid.n_steps,), self.grid.E.dtype)
         logger.debug(
             f"EFieldDetector attached to {self.i_s}, {self.j_s} and {self.k_s}"
         )
