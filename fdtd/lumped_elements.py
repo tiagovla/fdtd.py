@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from abc import abstractmethod
 from functools import partial
 from typing import Optional
 
@@ -62,9 +63,31 @@ class LumpedElement(FDTDElementBase):
         self.bounding_box = BoundingBox(x_min, x_max, y_min, y_max, z_min,
                                         z_max)
 
+    @abstractmethod
     def attach_to_grid(self):
         """Attach object to grid."""
         raise NotImplementedError
+
+    def update_E(self):
+        """Static elements are already included in the update coefficients."""
+
+    def _set_region(self):
+        coordinates = (self.grid.x, self.grid.y, self.grid.z)
+        self.idx_s = tuple(int(np.argmin(abs(a-b))) for a, b in zip(
+            coordinates, (self.x_min, self.y_min, self.z_min)))
+        self.idx_e = tuple(int(np.argmin(abs(a-b))) for a, b in zip(
+            coordinates, (self.x_max, self.y_max, self.z_max)))
+        axis = self.direction.value
+        self.series = self.idx_e[axis] - self.idx_s[axis]
+        self.parallel = np.prod([self.idx_e[d]-self.idx_s[d]+1
+                                 for d in range(3) if d != axis])
+        if self.series <= 0:
+            raise ValueError("Lumped element must span at least one field edge.")
+        self.slices = tuple(slice(s, e + (d != axis)) for d, (s, e) in
+                            enumerate(zip(self.idx_s, self.idx_e)))
+        self.index = self.slices + (axis,)
+        self.edge_length = self.grid.spacing[axis]
+        self.edge_area = np.prod([self.grid.spacing[d] for d in range(3) if d != axis])
 
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""
@@ -303,7 +326,7 @@ class Inductor(LumpedElement):
                  x_max: float,
                  y_max: float,
                  z_max: float,
-                 resistance: float = 50,
+                 resistance: float = 0,
                  inductance: float = 1e-6,
                  name: Optional[str] = None,
                  direction: Direction = Direction.Z):
@@ -312,6 +335,31 @@ class Inductor(LumpedElement):
                          direction)
         self.resistance = resistance
         self.inductance = inductance
+        self.current_density = None
+
+    def reset(self):
+        self.current_density = None
+
+    def attach_to_grid(self):
+        if not np.isfinite(self.inductance) or self.inductance <= 0:
+            raise ValueError("Inductance must be finite and positive.")
+        if not np.isfinite(self.resistance) or self.resistance < 0:
+            raise ValueError("Series resistance must be finite and nonnegative.")
+        self._set_region()
+        scale = self.parallel / self.series
+        inductance = self.inductance * scale
+        resistance = self.resistance * scale
+        damping = self.grid.dt * resistance / (2 * inductance)
+        self._decay = (1-damping) / (1+damping)
+        self._drive = self.grid.dt * self.edge_length / (
+            inductance * self.edge_area * (1+damping))
+        self._coupling = -self.grid.c_eh[self.index].copy()
+        self.current_density = np.zeros_like(self.grid.E[self.index])
+
+    def update_E(self):
+        self.grid.E[self.index] += self._coupling * self.current_density
+        self.current_density = (self._decay * self.current_density +
+                                self._drive * self.grid.E[self.index])
 
 
 class Diode(LumpedElement):

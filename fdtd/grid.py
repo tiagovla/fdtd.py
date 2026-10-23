@@ -287,6 +287,8 @@ class Grid:
 
         for src in self.sources:
             src.update_E()
+        for element in self.lumped_elements:
+            element.update_E()
 
     def update_H(self):
         """Update H Field."""
