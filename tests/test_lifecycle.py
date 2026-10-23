@@ -1,6 +1,6 @@
 import numpy as np
 
-from fdtd import EFieldDetector, Grid, VoltageSource
+from fdtd import Brick, EFieldDetector, Grid, Material, VoltageSource
 
 
 def simulation():
@@ -35,3 +35,19 @@ def test_reset_and_restart_match_fresh_grid():
     np.testing.assert_allclose(detector.captured, first)
     grid.run(8, restart=True, progress=False)
     np.testing.assert_allclose(detector.captured, first)
+
+
+def test_reset_and_object_removal_restore_background_material():
+    grid = Grid((4, 4, 4), 1e-3)
+    grid.cell_material[:] = (2, 1, 0, 0)
+    material = Material("reset-object-background", eps_r=6)
+    brick = Brick(0, 0, 0, 2e-3, 2e-3, 2e-3, material)
+    grid.add(brick)
+    grid.run(1, progress=False)
+    assert grid.cell_material[0, 0, 0, 0] == 6
+    grid.reset()
+    brick.detach_from_grid()
+    grid.cell_material[0, 0, 0, 0] = 3
+    grid.run(1, progress=False)
+    assert grid.cell_material[0, 0, 0, 0] == 3
+    assert grid.cell_material[1, 1, 1, 0] == 2

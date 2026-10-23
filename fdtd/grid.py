@@ -95,6 +95,7 @@ class Grid:
             ),
             axis=3,
         )
+        self._background_material = None
 
         # Properties:
         self.eps_r = np.ones((self.Nx, self.Ny, self.Nz, 3))
@@ -139,6 +140,9 @@ class Grid:
         self._prepared = False
         self.E.fill(0)
         self.H.fill(0)
+        if self._background_material is not None:
+            self.cell_material[:] = self._background_material
+            self._background_material = None
         for element in (
             *self.sources,
             *self.lumped_elements,
@@ -237,6 +241,10 @@ class Grid:
     def _prepare(self):
         """Prepare grid, add objects, sources, ..."""
         logger.info("Preparing objects, sources, lumped elements, ...")
+        if self._background_material is None:
+            self._background_material = self.cell_material.copy()
+        else:
+            self.cell_material[:] = self._background_material
         for obj in self.objects:
             obj.attach_to_grid()
 
@@ -342,8 +350,10 @@ class Grid:
             self.c_hh,
             self.c_he,
         )
-        return sum(array.nbytes for array in arrays) + sum(
-            detector.estimate_memory(n_steps) for detector in self.detectors
+        return (
+            sum(array.nbytes for array in arrays)
+            + self.cell_material.nbytes
+            + sum(detector.estimate_memory(n_steps) for detector in self.detectors)
         )
 
     def step(self):
