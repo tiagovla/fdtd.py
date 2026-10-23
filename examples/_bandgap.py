@@ -16,6 +16,13 @@ def arguments(dimension):
     parser.add_argument("--probes", type=int, default=3)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument("--morpho-grid", type=int, default=65 if dimension == 2 else 32)
+    parser.add_argument(
+        "--morpho-order",
+        type=int,
+        default=7 if dimension == 2 else 3,
+        help="number of plane-wave harmonics per axis",
+    )
     parser.add_argument("--no-plot", action="store_true")
     parser.add_argument("--output")
     args = parser.parse_args()
@@ -23,6 +30,8 @@ def arguments(dimension):
         args.cells < 8
         or args.steps < 2
         or min(args.points, args.probes, args.workers) < 1
+        or args.morpho_grid < 2
+        or args.morpho_order < 1
     ):
         parser.error("cells must be at least 8, steps at least 2, and counts positive")
     return args
@@ -58,7 +67,7 @@ def path(dimension, intervals, period):
     )
 
 
-def draw(bz_path, bands, period, output, show, y_limits=None):
+def draw(bz_path, bands, period, output, show, y_limits=None, curves=None):
     if not output and not show:
         return
     import matplotlib.pyplot as plt
@@ -66,15 +75,46 @@ def draw(bz_path, bands, period, output, show, y_limits=None):
     from fdtd.constants import SPEED_LIGHT
 
     _, ax = plt.subplots(figsize=(6, 4))
-    colors = {"TM": "blue", "TE": "red", "3D": "blue"}
+    colors = {
+        "TM": "blue",
+        "TE": "red",
+        "3D": "blue",
+        "3D FDTD": "blue",
+        "3D Morpho.py": "red",
+    }
+
+    def band_color(name):
+        if name in colors:
+            return colors[name]
+        return colors[
+            "TM" if name.startswith("TM") else "TE" if name.startswith("TE") else "3D"
+        ]
+
     for distance, frequencies, polarization in bands:
         ax.scatter(
             np.full(len(frequencies), distance),
             frequencies * period / SPEED_LIGHT,
-            color=colors.get(polarization, "blue"),
+            color=band_color(polarization),
+            zorder=2,
             s=8,
             label=polarization,
         )
+    for distance, frequencies, polarization in curves or ():
+        for index in range(frequencies.shape[1]):
+            ax.plot(
+                distance,
+                frequencies[:, index],
+                color=band_color(polarization),
+                linewidth=1,
+                label=(
+                    f"{polarization} Morpho.py"
+                    if index == 0 and "Morpho.py" not in polarization
+                    else polarization
+                    if index == 0
+                    else None
+                ),
+                zorder=1,
+            )
     ax.set_xticks(bz_path.point_locations, bz_path.point_names)
     ax.set_xlim(0, bz_path.point_locations[-1])
     if y_limits is not None:

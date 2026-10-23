@@ -13,6 +13,26 @@ from fdtd import (
 )
 
 
+def plane_wave_bands(bz_path, period, radius, eps_rod, grid_size, order):
+    from morpho import Geometry, Solver
+
+    geometry = Geometry((period, 0), (0, period), grid_size, grid_size)
+
+    @geometry.overwrite
+    def eps_rf(eps_r, x, y):
+        eps_r[x**2 + y**2 <= radius**2] = eps_rod
+
+    tm_solver = Solver(geometry, bz_path, P=order, Q=order, pol="TM")
+    te_solver = Solver(geometry, bz_path, P=order, Q=order, pol="TE")
+    tm_solver.run()
+    te_solver.run()
+    scale = period / (2 * np.pi)
+    return [
+        (bz_path.betas.cumsum, np.vstack(tm_solver.wn) * scale, "TM"),
+        (bz_path.betas.cumsum, np.vstack(te_solver.wn) * scale, "TE"),
+    ]
+
+
 def simulation(beta, cells, steps, probes, seed, magnetic=False):
     from scipy.signal import find_peaks
 
@@ -50,6 +70,9 @@ def simulation(beta, cells, steps, probes, seed, magnetic=False):
 def main():
     args = arguments(2)
     bz_path = path(2, args.points, 1e-6)
+    pwe = plane_wave_bands(
+        bz_path, 1e-6, 0.2e-6, 8.9, args.morpho_grid, args.morpho_order
+    )
     betas = bz_path.betas
     bands = []
     for magnetic, name in ((False, "TM"), (True, "TE")):
@@ -57,9 +80,20 @@ def main():
             frequencies = simulation(
                 beta, args.cells, args.steps, args.probes, args.seed, magnetic
             )
-            bands.append((distance, frequencies, name))
-    draw(bz_path, bands, 1e-6, args.output, not args.no_plot, y_limits=(0, 1))
-    print(f"Completed {len(bands)} simulations with seed {args.seed}")
+            bands.append((distance, frequencies, f"{name} FDTD"))
+    draw(
+        bz_path,
+        bands,
+        1e-6,
+        args.output,
+        not args.no_plot,
+        y_limits=(0, 1),
+        curves=pwe,
+    )
+    print(
+        f"Completed {len(bands)} FDTD runs and "
+        f"{sum(band[1].shape[1] for band in pwe)} PWE bands"
+    )
 
 
 if __name__ == "__main__":
