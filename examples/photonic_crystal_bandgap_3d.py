@@ -20,6 +20,7 @@ from fdtd.constants import SPEED_LIGHT as C
 from fdtd.objects import Brick
 from fdtd.sources import ImpressedElectricCurrentSource as JSource
 from fdtd.utils import Direction
+from fdtd.waveforms import GaussianWaveform
 
 # Setting up logger
 # fileConfig("logging_config.ini")
@@ -57,13 +58,15 @@ j_sources = []
 e_detectors = []
 
 dir_gen = itertools.cycle([Direction.X, Direction.Y, Direction.Z])
+waveform = GaussianWaveform(t_0=1e-15, tau=2e-16)
 for _ in range(30):
     point = (
         random.uniform(0.2e-6, 0.8e-6),
         random.uniform(0.2e-6, 0.8e-6),
         random.uniform(0.2e-6, 0.8e-6),
     )
-    j_source = JSource(*point, *point, direction=next(dir_gen))
+    j_source = JSource(*point, *point, waveform=waveform,
+                        direction=next(dir_gen))
     j_sources.append(j_source)
 
 for _ in range(30):
