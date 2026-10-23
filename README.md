@@ -53,4 +53,4 @@ grid.plot_3d()
 
 
 ### References
-[1] A. Z. Elsherbeni and V. Demir, The finite-difference time-domain: method for electromagnetics with MATLAB simulations, 2nd Edition. Edison, NJ: SciTech Publishing, an imprint of the IET, 2016.
+[1] A. Z. Elsherbeni and V. Demir, The finite-difference time-domain method for electromagnetics, 2nd Edition. Edison, NJ: SciTech Publishing, an imprint of the IET, 2016.
