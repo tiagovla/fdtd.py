@@ -1,4 +1,5 @@
 """This module implements the grid."""
+
 from __future__ import annotations
 
 import logging
@@ -36,12 +37,25 @@ class Grid:
         courant_factor: float = 0.9,
     ):
         """Initialize the grid."""
-        if len(shape) != 3 or any(isinstance(n, bool) or not isinstance(n, Integral)
-                                  or n < 1 for n in shape) or max(shape) == 1:
-            raise ValueError("shape must contain three positive integers and an active axis.")
+        if (
+            len(shape) != 3
+            or any(
+                isinstance(n, bool) or not isinstance(n, Integral) or n < 1
+                for n in shape
+            )
+            or max(shape) == 1
+        ):
+            raise ValueError(
+                "shape must contain three positive integers and an active axis."
+            )
         spacing = (spacing,) * 3 if isinstance(spacing, Real) else tuple(spacing)
-        if len(spacing) != 3 or any(not isinstance(d, Real) or isinstance(d, bool)
-                                    or not np.isfinite(d) or d <= 0 for d in spacing):
+        if len(spacing) != 3 or any(
+            not isinstance(d, Real)
+            or isinstance(d, bool)
+            or not np.isfinite(d)
+            or d <= 0
+            for d in spacing
+        ):
             raise ValueError("spacing must contain three finite positive values.")
         self.spacing = tuple(float(d) for d in spacing)
 
@@ -49,20 +63,27 @@ class Grid:
         self.Nx, self.Ny, self.Nz = shape
         self.dim = sum([1 for s in self.shape if s > 1])
 
-        if isinstance(courant_factor, Real) and np.isfinite(courant_factor) and 0 < courant_factor < 1:
+        if (
+            isinstance(courant_factor, Real)
+            and np.isfinite(courant_factor)
+            and 0 < courant_factor < 1
+        ):
             self.courant_factor = courant_factor
         else:
-            raise ValueError(
-                f"courant_factor {courant_factor} must be between 0 and 1")
+            raise ValueError(f"courant_factor {courant_factor} must be between 0 and 1")
 
-        self.dt = self.courant_factor / (SPEED_LIGHT * np.sqrt(
-            np.float_power(
-                [
-                    s1 if s2 > 1 else np.inf
-                    for s1, s2 in zip(self.spacing, self.shape)
-                ],
-                -2,
-            ).sum()))
+        self.dt = self.courant_factor / (
+            SPEED_LIGHT
+            * np.sqrt(
+                np.float_power(
+                    [
+                        s1 if s2 > 1 else np.inf
+                        for s1, s2 in zip(self.spacing, self.shape)
+                    ],
+                    -2,
+                ).sum()
+            )
+        )
 
         self.E = np.zeros((self.Nx, self.Ny, self.Nz, 3), dtype=complex)
         self.H = np.zeros((self.Nx, self.Ny, self.Nz, 3), dtype=complex)
@@ -118,8 +139,12 @@ class Grid:
         self._prepared = False
         self.E.fill(0)
         self.H.fill(0)
-        for element in (*self.sources, *self.lumped_elements, *self.detectors,
-                        *self.boundaries):
+        for element in (
+            *self.sources,
+            *self.lumped_elements,
+            *self.detectors,
+            *self.boundaries,
+        ):
             element.reset()
 
         self.c_ee[:] = 0
@@ -163,8 +188,11 @@ class Grid:
                 adjacent = previous(values, component)
                 total = values + adjacent
                 target[..., component] = np.divide(
-                    2 * values * adjacent, total, out=np.zeros_like(values),
-                    where=total != 0)
+                    2 * values * adjacent,
+                    total,
+                    out=np.zeros_like(values),
+                    where=total != 0,
+                )
 
     @property
     def x_min(self) -> float:
@@ -212,11 +240,15 @@ class Grid:
         for obj in self.objects:
             obj.attach_to_grid()
 
-        if (self.cell_material.shape != self.shape + (4,) or
-                not np.all(np.isfinite(self.cell_material)) or
-                np.any(self.cell_material[..., :2] <= 0) or
-                np.any(self.cell_material[..., 2:] < 0)):
-            raise ValueError("Material grid requires positive eps/mu and nonnegative conductivities.")
+        if (
+            self.cell_material.shape != self.shape + (4,)
+            or not np.all(np.isfinite(self.cell_material))
+            or np.any(self.cell_material[..., :2] <= 0)
+            or np.any(self.cell_material[..., 2:] < 0)
+        ):
+            raise ValueError(
+                "Material grid requires positive eps/mu and nonnegative conductivities."
+            )
         for element in (*self.sources, *self.lumped_elements, *self.detectors):
             validate_node_bounds(self, element)
 
@@ -243,18 +275,32 @@ class Grid:
             det.attach_to_grid()
         self._prepared = True
 
-    def run(self, n_steps: int = 1000, total_time: Optional[float] = None,
-            *, restart: bool = False, progress: bool = True):
+    def run(
+        self,
+        n_steps: int = 1000,
+        total_time: Optional[float] = None,
+        *,
+        restart: bool = False,
+        progress: bool = True,
+    ):
         """Advance by n_steps (or total_time), retaining previous samples.
 
         Use restart=True, or call reset(), to start again from zero fields.
         """
         if total_time is None:
-            if isinstance(n_steps, bool) or not isinstance(n_steps, Integral) or n_steps <= 0:
+            if (
+                isinstance(n_steps, bool)
+                or not isinstance(n_steps, Integral)
+                or n_steps <= 0
+            ):
                 raise ValueError("n_steps must be a positive integer.")
             steps = int(n_steps)
         else:
-            if not isinstance(total_time, Real) or not np.isfinite(total_time) or total_time <= 0:
+            if (
+                not isinstance(total_time, Real)
+                or not np.isfinite(total_time)
+                or total_time <= 0
+            ):
                 raise ValueError("total_time must be finite and positive.")
             steps = floor(total_time / self.dt + 1e-12)
             if steps < 1:
@@ -283,10 +329,22 @@ class Grid:
             det.plot()
 
     def estimate_memory(self, n_steps):
-        arrays = (self.E, self.H, self.cell_material, self.eps_r, self.mu_r,
-                  self.sigma_e, self.sigma_m, self.c_ee, self.c_eh, self.c_hh, self.c_he)
+        arrays = (
+            self.E,
+            self.H,
+            self.cell_material,
+            self.eps_r,
+            self.mu_r,
+            self.sigma_e,
+            self.sigma_m,
+            self.c_ee,
+            self.c_eh,
+            self.c_hh,
+            self.c_he,
+        )
         return sum(array.nbytes for array in arrays) + sum(
-            detector.estimate_memory(n_steps) for detector in self.detectors)
+            detector.estimate_memory(n_steps) for detector in self.detectors
+        )
 
     def step(self):
         """Run a single step of the simulation."""
@@ -328,8 +386,7 @@ class Grid:
         for src in self.sources:
             src.update_H()
 
-    def add(self, elm: Union[Object, Source, LumpedElement, Detector,
-                             Boundary]):
+    def add(self, elm: Union[Object, Source, LumpedElement, Detector, Boundary]):
         """Add element to grid."""
         if not isinstance(elm, (Object, Source, LumpedElement, Detector, Boundary)):
             raise TypeError("Unsupported grid element.")
@@ -353,8 +410,13 @@ class Grid:
     def remove(self, element):
         if self.current_time_step:
             raise RuntimeError("Reset the grid before changing its components.")
-        for collection in (self.objects, self.sources, self.lumped_elements,
-                           self.detectors, self.boundaries):
+        for collection in (
+            self.objects,
+            self.sources,
+            self.lumped_elements,
+            self.detectors,
+            self.boundaries,
+        ):
             if element in collection:
                 collection.remove(element)
                 element.grid = None
@@ -387,13 +449,13 @@ class Grid:
         eps = self.eps_r * EPS_0
         mu = self.mu_r * MU_0
 
-        f_e = (dt * self.sigma_e) / (2*eps)
-        f_m = (dt * self.sigma_m) / (2*mu)
+        f_e = (dt * self.sigma_e) / (2 * eps)
+        f_m = (dt * self.sigma_m) / (2 * mu)
 
-        self.c_ee = (1-f_e) / (1+f_e)
-        self.c_eh = dt / (eps * (1+f_e))
-        self.c_hh = (1-f_m) / (1+f_m)
-        self.c_he = -dt / (mu * (1+f_m))
+        self.c_ee = (1 - f_e) / (1 + f_e)
+        self.c_eh = dt / (eps * (1 + f_e))
+        self.c_hh = (1 - f_m) / (1 + f_m)
+        self.c_he = -dt / (mu * (1 + f_m))
 
         logger.debug(f"c_ee {self.c_ee[0, 0, 0, 0]} {self.c_ee.shape}")
         logger.debug(f"c_eh {self.c_eh[0, 0, 0, 0]} {self.c_eh.shape}")
@@ -409,8 +471,7 @@ class Grid:
         X, Y, Z = np.meshgrid(self.x, self.y, self.z)
         mask = self.eps_r[:, :, :, 1] > 1
         x, y, z = np.nonzero(mask)
-        ax.scatter(x * self.spacing[0], y * self.spacing[1],
-                   z * self.spacing[2])
+        ax.scatter(x * self.spacing[0], y * self.spacing[1], z * self.spacing[2])
 
         ax.grid(True)
         ax.set_xlim([0, self.Nx * self.spacing[0]])

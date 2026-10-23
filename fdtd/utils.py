@@ -1,4 +1,5 @@
 """This module implements the utilities."""
+
 from dataclasses import dataclass
 from enum import Enum
 
@@ -28,19 +29,30 @@ class BoundingBox:
 
     def __post_init__(self):
         """Check bounding constraints."""
-        values = (self.x_min, self.x_max, self.y_min, self.y_max, self.z_min, self.z_max)
+        values = (
+            self.x_min,
+            self.x_max,
+            self.y_min,
+            self.y_max,
+            self.z_min,
+            self.z_max,
+        )
         if not all(np.isscalar(v) and np.isreal(v) and np.isfinite(v) for v in values):
             raise ValueError("Bounding coordinates must be finite real numbers.")
-        if (self.x_max < self.x_min or self.y_max < self.y_min
-                or self.z_max < self.z_min):
+        if (
+            self.x_max < self.x_min
+            or self.y_max < self.y_min
+            or self.z_max < self.z_min
+        ):
             raise WrongBounding
 
 
 def validate_node_bounds(grid, element):
     for coordinates, lower, upper in zip(
-            (grid.x, grid.y, grid.z),
-            (element.x_min, element.y_min, element.z_min),
-            (element.x_max, element.y_max, element.z_max)):
+        (grid.x, grid.y, grid.z),
+        (element.x_min, element.y_min, element.z_min),
+        (element.x_max, element.y_max, element.z_max),
+    ):
         tolerance = max(abs(coordinates[-1]), grid.dx, grid.dy, grid.dz) * 1e-12
         if lower < -tolerance or upper > coordinates[-1] + tolerance:
             raise ValueError("Component bounds extend beyond the stored grid nodes.")
@@ -50,9 +62,14 @@ def _add_periodic_curl(curl, field, spacing, periodic, phases, forward):
     if periodic is None:
         return curl
     phases = (1, 1, 1) if phases is None else phases
-    for axis, component, target, sign in ((1, 2, 0, 1), (2, 1, 0, -1),
-                                         (2, 0, 1, 1), (0, 2, 1, -1),
-                                         (0, 1, 2, 1), (1, 0, 2, -1)):
+    for axis, component, target, sign in (
+        (1, 2, 0, 1),
+        (2, 1, 0, -1),
+        (2, 0, 1, 1),
+        (0, 2, 1, -1),
+        (0, 1, 2, 1),
+        (1, 0, 2, -1),
+    ):
         if not periodic[axis] or field.shape[axis] == 1:
             continue
         first = [slice(None)] * 3
@@ -60,16 +77,22 @@ def _add_periodic_curl(curl, field, spacing, periodic, phases, forward):
         first[axis], last[axis] = 0, -1
         first, last = tuple(first), tuple(last)
         if forward:
-            difference = field[first + (component,)] * phases[axis] - field[last + (component,)]
+            difference = (
+                field[first + (component,)] * phases[axis] - field[last + (component,)]
+            )
             index = last
         else:
-            difference = field[first + (component,)] - field[last + (component,)] / phases[axis]
+            difference = (
+                field[first + (component,)] - field[last + (component,)] / phases[axis]
+            )
             index = first
         curl[index + (target,)] += sign * difference / spacing[axis]
     return curl
 
 
-def curl_H(H: np.ndarray, dx: float, dy: float, dz: float, periodic=None, phases=None) -> np.ndarray:
+def curl_H(
+    H: np.ndarray, dx: float, dy: float, dz: float, periodic=None, phases=None
+) -> np.ndarray:
     """curl_H.
 
     Parameters

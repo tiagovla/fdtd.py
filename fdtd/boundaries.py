@@ -1,4 +1,5 @@
 """Boundary conditions for wrapped staggered derivatives."""
+
 from abc import abstractmethod
 
 import numpy as np
@@ -28,7 +29,9 @@ class PeriodicBoundary(Boundary):
         for axis, enabled in enumerate((self.x_dir, self.y_dir, self.z_dir)):
             if enabled:
                 if self.grid._periodic[axis]:
-                    raise ValueError("Only one periodic boundary may configure each axis.")
+                    raise ValueError(
+                        "Only one periodic boundary may configure each axis."
+                    )
                 self.grid._periodic[axis] = True
                 self.grid._phases[axis] = phases[axis]
 
@@ -37,8 +40,9 @@ class PeriodicBoundary(Boundary):
 
 
 class PeriodicBlochBoundary(PeriodicBoundary):
-    def __init__(self, b_vec=(0, 0, 0), x_direction=False,
-                 y_direction=False, z_direction=False):
+    def __init__(
+        self, b_vec=(0, 0, 0), x_direction=False, y_direction=False, z_direction=False
+    ):
         super().__init__(x_direction, y_direction, z_direction)
         self.b_vec = b_vec
 

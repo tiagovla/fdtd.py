@@ -1,4 +1,5 @@
 """This module implements the objects."""
+
 from __future__ import annotations
 
 import json
@@ -76,8 +77,12 @@ class Material(metaclass=MaterialMeta):
     def _validate(name, eps_r=1, mu_r=1, sigma_e=0, sigma_m=0, color="#000000"):
         if not isinstance(name, str) or not name:
             raise ValueError("Material name must be a nonempty string.")
-        for label, value in (("eps_r", eps_r), ("mu_r", mu_r),
-                              ("sigma_e", sigma_e), ("sigma_m", sigma_m)):
+        for label, value in (
+            ("eps_r", eps_r),
+            ("mu_r", mu_r),
+            ("sigma_e", sigma_e),
+            ("sigma_m", sigma_m),
+        ):
             if not np.isscalar(value) or not np.isfinite(value) or value < 0:
                 raise ValueError(f"{label} must be finite and nonnegative.")
             if label in ("eps_r", "mu_r") and value == 0:
@@ -113,7 +118,9 @@ class Material(metaclass=MaterialMeta):
         with open(file_name, "r") as f:
             data = json.load(f)
         if not isinstance(data, list):
-            raise ValueError("Material file must contain a list of material definitions.")
+            raise ValueError(
+                "Material file must contain a list of material definitions."
+            )
         names = set()
         pending = []
         for props in data:
@@ -128,10 +135,17 @@ class Material(metaclass=MaterialMeta):
             if existing is None:
                 pending.append(props)
             else:
-                expected = {"eps_r": 1, "mu_r": 1, "sigma_e": 0,
-                            "sigma_m": 0, "color": "#000000"}
+                expected = {
+                    "eps_r": 1,
+                    "mu_r": 1,
+                    "sigma_e": 0,
+                    "sigma_m": 0,
+                    "color": "#000000",
+                }
                 expected.update(props)
-                if any(getattr(existing, key) != value for key, value in expected.items()):
+                if any(
+                    getattr(existing, key) != value for key, value in expected.items()
+                ):
                     raise MaterialExists(f"Conflicting material {name}.")
         for props in pending:
             cls(**props)

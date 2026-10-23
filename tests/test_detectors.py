@@ -39,17 +39,23 @@ def test_spectrum_preserves_spatial_channels_and_physical_phase(kind, offset):
     assert averaged[4] == pytest.approx(1.5)
 
 
-@pytest.mark.parametrize("kind, direction, expected", [
-    (EFieldDetector, Direction.X, 1.5),
-    (HFieldDetector, Direction.Z, 3),
-])
-def test_interpolated_probe_uses_surrounding_staggered_components(kind, direction, expected):
+@pytest.mark.parametrize(
+    "kind, direction, expected",
+    [
+        (EFieldDetector, Direction.X, 1.5),
+        (HFieldDetector, Direction.Z, 3),
+    ],
+)
+def test_interpolated_probe_uses_surrounding_staggered_components(
+    kind, direction, expected
+):
     grid = Grid((4, 4, 4), 1e-3)
     field = grid.E if kind is EFieldDetector else grid.H
     i, j, _ = np.indices(grid.shape)
     field[..., direction.value] = i if kind is EFieldDetector else i + j
-    detector = kind(2e-3, 2e-3, 2e-3, 2e-3, 2e-3, 2e-3,
-                    direction=direction, interpolate=True)
+    detector = kind(
+        2e-3, 2e-3, 2e-3, 2e-3, 2e-3, 2e-3, direction=direction, interpolate=True
+    )
     grid.add(detector)
     grid.n_steps = 1
     detector.attach_to_grid()
@@ -59,8 +65,9 @@ def test_interpolated_probe_uses_surrounding_staggered_components(kind, directio
 
 def test_decimated_reduction_preserves_sampling_across_split_runs():
     grid = Grid((4, 4, 4), 1e-3)
-    detector = EFieldDetector(0, 0, 0, 3e-3, 3e-3, 3e-3,
-                              sample_interval=3, reduction="mean")
+    detector = EFieldDetector(
+        0, 0, 0, 3e-3, 3e-3, 3e-3, sample_interval=3, reduction="mean"
+    )
     grid.add(detector)
     grid.run(4, progress=False)
     grid.run(4, progress=False)
@@ -68,7 +75,9 @@ def test_decimated_reduction_preserves_sampling_across_split_runs():
     np.testing.assert_allclose(detector.time, np.array([1, 4, 7]) * grid.dt)
     assert detector.sample_count == 3
     detector.post_process()
-    assert detector.estimate_memory(8) == detector.captured.nbytes + detector.time.nbytes
+    assert (
+        detector.estimate_memory(8) == detector.captured.nbytes + detector.time.nbytes
+    )
 
 
 def test_large_capture_fails_before_allocating_storage():

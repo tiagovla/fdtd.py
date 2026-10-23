@@ -8,8 +8,7 @@ from fdtd.utils import Direction
 
 @pytest.mark.parametrize("element", [Capacitor, Inductor, Diode, Resistor])
 def test_lumped_elements_initialize_base_state(element):
-    device = element(0, 0, 0, 1e-3, 1e-3, 1e-3, name="device",
-                     direction=Direction.X)
+    device = element(0, 0, 0, 1e-3, 1e-3, 1e-3, name="device", direction=Direction.X)
 
     assert device.name == "device"
     assert device.direction is Direction.X
@@ -30,7 +29,11 @@ def test_terminal_value_is_preserved_across_geometry(element, value, direction):
     length = grid.spacing[axis]
     area = np.prod([grid.spacing[d] for d in range(3) if d != axis])
     effective = value * 9 / 3 if element is Resistor else value * 3 / 9
-    term = grid.dt * length / (effective * area) if element is Resistor else 2 * effective * length / area
+    term = (
+        grid.dt * length / (effective * area)
+        if element is Resistor
+        else 2 * effective * length / area
+    )
     expected = 2 * grid.dt / (2 * EPS_0 + term)
     index = (0, 0, 0, axis)
     assert grid.c_eh[index] == pytest.approx(expected, rel=1e-12)
@@ -67,7 +70,9 @@ def test_diode_satisfies_implicit_junction_equation(direction, polarity, drive):
     grid.E[diode.index] = polarity * drive / 1e-3
     diode.update_E()
     voltage = diode.previous_voltage
-    current = diode.saturation_current * np.expm1(voltage / (2 * diode._thermal_voltage))
+    current = diode.saturation_current * np.expm1(
+        voltage / (2 * diode._thermal_voltage)
+    )
     assert voltage - drive + diode._gamma * current == pytest.approx(0, abs=1e-8)
     if drive < 0:
         assert voltage == pytest.approx(drive)

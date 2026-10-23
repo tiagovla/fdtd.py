@@ -21,7 +21,9 @@ def test_failed_duplicate_does_not_remove_registered_material():
 
 def test_loading_is_atomic_and_repeatable(tmp_path):
     path = tmp_path / "materials.json"
-    path.write_text(json.dumps([{"name": "atomic-first"}, {"name": "atomic-bad", "eps_r": 0}]))
+    path.write_text(
+        json.dumps([{"name": "atomic-first"}, {"name": "atomic-bad", "eps_r": 0}])
+    )
     with pytest.raises(ValueError):
         Material.load(path)
     with pytest.raises(MaterialNotFound):

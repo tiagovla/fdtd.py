@@ -6,16 +6,19 @@ from fdtd.constants import FREESPACE_PERMITTIVITY as EPS_0
 from fdtd.utils import Direction
 
 
-@pytest.mark.parametrize("direction, end", [
-    (Direction.X, (1e-3, 0, 0)),
-    (Direction.Y, (0, 1e-3, 0)),
-    (Direction.Z, (0, 0, 1e-3)),
-])
+@pytest.mark.parametrize(
+    "direction, end",
+    [
+        (Direction.X, (1e-3, 0, 0)),
+        (Direction.Y, (0, 1e-3, 0)),
+        (Direction.Z, (0, 0, 1e-3)),
+    ],
+)
 def test_voltage_source_supports_each_direction(direction, end):
     grid = Grid(shape=(3, 3, 3), spacing=1e-3)
-    source = VoltageSource(0, 0, 0, *end,
-                           waveform=lambda time: 1.0,
-                           direction=direction)
+    source = VoltageSource(
+        0, 0, 0, *end, waveform=lambda time: 1.0, direction=direction
+    )
     grid.add(source)
     grid._prepare()
 
@@ -31,7 +34,10 @@ def test_voltage_source_supports_each_direction(direction, end):
 def test_voltage_drive_is_sampled_at_half_step():
     times = []
     grid = Grid((3, 3, 3), 1e-3)
-    grid.add(VoltageSource(0, 0, 0, 0, 0, 1e-3,
-                           waveform=lambda time: times.append(time) or 1))
+    grid.add(
+        VoltageSource(
+            0, 0, 0, 0, 0, 1e-3, waveform=lambda time: times.append(time) or 1
+        )
+    )
     grid.run(3, progress=False)
     np.testing.assert_allclose(times, (np.arange(3) + 0.5) * grid.dt)

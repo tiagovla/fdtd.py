@@ -5,7 +5,9 @@ def pyplot():
     try:
         import matplotlib.pyplot as plt
     except ImportError as error:
-        raise ImportError("Plotting requires the 'plot' extra: pip install 'fdtd.py[plot]'.") from error
+        raise ImportError(
+            "Plotting requires the 'plot' extra: pip install 'fdtd.py[plot]'."
+        ) from error
     return plt
 
 

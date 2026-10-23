@@ -1,4 +1,5 @@
 """This module implement lumped elements."""
+
 from __future__ import annotations
 
 import logging
@@ -62,8 +63,7 @@ class LumpedElement(FDTDElementBase):
         self.name = name if name else self._create_new_name()
         self.direction = direction
 
-        self.bounding_box = BoundingBox(x_min, x_max, y_min, y_max, z_min,
-                                        z_max)
+        self.bounding_box = BoundingBox(x_min, x_max, y_min, y_max, z_min, z_max)
 
     @abstractmethod
     def attach_to_grid(self):
@@ -75,18 +75,25 @@ class LumpedElement(FDTDElementBase):
 
     def _set_region(self):
         coordinates = (self.grid.x, self.grid.y, self.grid.z)
-        self.idx_s = tuple(int(np.argmin(abs(a-b))) for a, b in zip(
-            coordinates, (self.x_min, self.y_min, self.z_min)))
-        self.idx_e = tuple(int(np.argmin(abs(a-b))) for a, b in zip(
-            coordinates, (self.x_max, self.y_max, self.z_max)))
+        self.idx_s = tuple(
+            int(np.argmin(abs(a - b)))
+            for a, b in zip(coordinates, (self.x_min, self.y_min, self.z_min))
+        )
+        self.idx_e = tuple(
+            int(np.argmin(abs(a - b)))
+            for a, b in zip(coordinates, (self.x_max, self.y_max, self.z_max))
+        )
         axis = self.direction.value
         self.series = self.idx_e[axis] - self.idx_s[axis]
-        self.parallel = np.prod([self.idx_e[d]-self.idx_s[d]+1
-                                 for d in range(3) if d != axis])
+        self.parallel = np.prod(
+            [self.idx_e[d] - self.idx_s[d] + 1 for d in range(3) if d != axis]
+        )
         if self.series <= 0:
             raise ValueError("Lumped element must span at least one field edge.")
-        self.slices = tuple(slice(s, e + (d != axis)) for d, (s, e) in
-                            enumerate(zip(self.idx_s, self.idx_e)))
+        self.slices = tuple(
+            slice(s, e + (d != axis))
+            for d, (s, e) in enumerate(zip(self.idx_s, self.idx_e))
+        )
         self.index = self.slices + (axis,)
         self.edge_length = self.grid.spacing[axis]
         self.edge_area = np.prod([self.grid.spacing[d] for d in range(3) if d != axis])
@@ -142,16 +149,17 @@ class Resistor(LumpedElement):
         direction: Direction = Direction.Z,
     ):
         """Initialize the object."""
-        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name,
-                         direction)
+        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name, direction)
         self.resistance = resistance
 
     def __repr__(self):
         """Dev. string representation."""
-        return (f"{self.__class__.__name__}"
-                f"[name={self.name}, resistance={self.resistance}, "
-                f"x_min={self.x_min}, y_min={self.y_min}, z_min={self.z_min}, "
-                f"x_max={self.x_max}, y_max={self.y_max}, z_max={self.z_max}]")
+        return (
+            f"{self.__class__.__name__}"
+            f"[name={self.name}, resistance={self.resistance}, "
+            f"x_min={self.x_min}, y_min={self.y_min}, z_min={self.z_min}, "
+            f"x_max={self.x_max}, y_max={self.y_max}, z_max={self.z_max}]"
+        )
 
     def attach_to_grid(self):
         """Attach object to grid."""
@@ -170,8 +178,9 @@ class Resistor(LumpedElement):
         dt = self.grid.dt
         counts = np.subtract(self.idx_e, self.idx_s)
         series = counts[self.direction.value]
-        parallel = np.prod([counts[d] + 1 for d in range(3)
-                            if d != self.direction.value])
+        parallel = np.prod(
+            [counts[d] + 1 for d in range(3) if d != self.direction.value]
+        )
         if series <= 0:
             raise ValueError("Resistor must span at least one field edge.")
         if not np.isfinite(self.resistance) or self.resistance <= 0:
@@ -182,25 +191,27 @@ class Resistor(LumpedElement):
             i_s = slice(self.idx_s[0], self.idx_e[0])
             j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-            term = (dt*dx) / (r_s*dy*dz)
+            term = (dt * dx) / (r_s * dy * dz)
         elif self.direction == Direction.Y:
             i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
             j_s = slice(self.idx_s[1], self.idx_e[1])
             k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-            term = (dt*dy) / (r_s*dx*dz)
+            term = (dt * dy) / (r_s * dx * dz)
         else:
             i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
             j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             k_s = slice(self.idx_s[2], self.idx_e[2])
-            term = (dt*dz) / (r_s*dx*dy)
+            term = (dt * dz) / (r_s * dx * dy)
 
         eps = self.grid.eps_r[i_s, j_s, k_s, self.direction.value] * EPS_0
         sigma_e = self.grid.sigma_e[i_s, j_s, k_s, self.direction.value]
 
-        self.grid.c_ee[i_s, j_s, k_s, self.direction.value] = \
-                (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
-        self.grid.c_eh[i_s, j_s, k_s, self.direction.value] = \
-                (2*dt) / (2*eps + dt*sigma_e + term)
+        self.grid.c_ee[i_s, j_s, k_s, self.direction.value] = (
+            2 * eps - dt * sigma_e - term
+        ) / (2 * eps + dt * sigma_e + term)
+        self.grid.c_eh[i_s, j_s, k_s, self.direction.value] = (2 * dt) / (
+            2 * eps + dt * sigma_e + term
+        )
 
 
 class Capacitor(LumpedElement):
@@ -237,16 +248,17 @@ class Capacitor(LumpedElement):
         direction: Direction = Direction.Z,
     ):
         """Initialize the object."""
-        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name,
-                         direction)
+        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name, direction)
         self.capacitance = capacitance
 
     def __repr__(self):
         """Dev. string representation."""
-        return (f"{self.__class__.__name__}"
-                f"[name={self.name}, capacitance={self.capacitance}, "
-                f"x_min={self.x_min}, y_min={self.y_min}, z_min={self.z_min}, "
-                f"x_max={self.x_max}, y_max={self.y_max}, z_max={self.z_max}]")
+        return (
+            f"{self.__class__.__name__}"
+            f"[name={self.name}, capacitance={self.capacitance}, "
+            f"x_min={self.x_min}, y_min={self.y_min}, z_min={self.z_min}, "
+            f"x_max={self.x_max}, y_max={self.y_max}, z_max={self.z_max}]"
+        )
 
     def attach_to_grid(self):
         """Attach object to grid."""
@@ -265,8 +277,9 @@ class Capacitor(LumpedElement):
         dt = self.grid.dt
         counts = np.subtract(self.idx_e, self.idx_s)
         series = counts[self.direction.value]
-        parallel = np.prod([counts[d] + 1 for d in range(3)
-                            if d != self.direction.value])
+        parallel = np.prod(
+            [counts[d] + 1 for d in range(3) if d != self.direction.value]
+        )
         if series <= 0:
             raise ValueError("Capacitor must span at least one field edge.")
         if not np.isfinite(self.capacitance) or self.capacitance <= 0:
@@ -277,25 +290,27 @@ class Capacitor(LumpedElement):
             i_s = slice(self.idx_s[0], self.idx_e[0])
             j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-            term = (2*c_s*dx) / (dy*dz)
+            term = (2 * c_s * dx) / (dy * dz)
         elif self.direction == Direction.Y:
             i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
             j_s = slice(self.idx_s[1], self.idx_e[1])
             k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-            term = (2*c_s*dy) / (dx*dz)
+            term = (2 * c_s * dy) / (dx * dz)
         else:
             i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
             j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             k_s = slice(self.idx_s[2], self.idx_e[2])
-            term = (2*c_s*dz) / (dx*dy)
+            term = (2 * c_s * dz) / (dx * dy)
 
         eps = self.grid.eps_r[i_s, j_s, k_s, self.direction.value] * EPS_0
         sigma_e = self.grid.sigma_e[i_s, j_s, k_s, self.direction.value]
 
-        self.grid.c_ee[i_s, j_s, k_s, self.direction.value] = \
-                (2*eps - dt*sigma_e + term) / (2*eps + dt*sigma_e + term)
-        self.grid.c_eh[i_s, j_s, k_s, self.direction.value] = \
-                (2*dt) / (2*eps + dt*sigma_e + term)
+        self.grid.c_ee[i_s, j_s, k_s, self.direction.value] = (
+            2 * eps - dt * sigma_e + term
+        ) / (2 * eps + dt * sigma_e + term)
+        self.grid.c_eh[i_s, j_s, k_s, self.direction.value] = (2 * dt) / (
+            2 * eps + dt * sigma_e + term
+        )
 
 
 class Inductor(LumpedElement):
@@ -321,20 +336,21 @@ class Inductor(LumpedElement):
         Internal inductance of the inductor.
     """
 
-    def __init__(self,
-                 x_min: float,
-                 y_min: float,
-                 z_min: float,
-                 x_max: float,
-                 y_max: float,
-                 z_max: float,
-                 resistance: float = 0,
-                 inductance: float = 1e-6,
-                 name: Optional[str] = None,
-                 direction: Direction = Direction.Z):
+    def __init__(
+        self,
+        x_min: float,
+        y_min: float,
+        z_min: float,
+        x_max: float,
+        y_max: float,
+        z_max: float,
+        resistance: float = 0,
+        inductance: float = 1e-6,
+        name: Optional[str] = None,
+        direction: Direction = Direction.Z,
+    ):
         """Initialize the object."""
-        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name,
-                         direction)
+        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name, direction)
         self.resistance = resistance
         self.inductance = inductance
         self.current_density = None
@@ -352,16 +368,20 @@ class Inductor(LumpedElement):
         inductance = self.inductance * scale
         resistance = self.resistance * scale
         damping = self.grid.dt * resistance / (2 * inductance)
-        self._decay = (1-damping) / (1+damping)
-        self._drive = self.grid.dt * self.edge_length / (
-            inductance * self.edge_area * (1+damping))
+        self._decay = (1 - damping) / (1 + damping)
+        self._drive = (
+            self.grid.dt
+            * self.edge_length
+            / (inductance * self.edge_area * (1 + damping))
+        )
         self._coupling = -self.grid.c_eh[self.index].copy()
         self.current_density = np.zeros_like(self.grid.E[self.index])
 
     def update_E(self):
         self.grid.E[self.index] += self._coupling * self.current_density
-        self.current_density = (self._decay * self.current_density +
-                                self._drive * self.grid.E[self.index])
+        self.current_density = (
+            self._decay * self.current_density + self._drive * self.grid.E[self.index]
+        )
 
 
 class Diode(LumpedElement):
@@ -387,8 +407,7 @@ class Diode(LumpedElement):
         max_iterations: int = 100,
     ):
         """Initialize the object."""
-        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name,
-                         direction)
+        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name, direction)
         self.resistance = resistance
         self.saturation_current = saturation_current
         self.temperature = temperature
@@ -415,8 +434,12 @@ class Diode(LumpedElement):
         self._set_region()
         if self.series != 1 or self.parallel != 1:
             raise ValueError("A diode must occupy a single field edge.")
-        self._thermal_voltage = self.ideality * 1.380649e-23 * self.temperature / 1.602176634e-19
-        self._gamma = float(self.grid.c_eh[self.index].item()) * self.edge_length / self.edge_area
+        self._thermal_voltage = (
+            self.ideality * 1.380649e-23 * self.temperature / 1.602176634e-19
+        )
+        self._gamma = (
+            float(self.grid.c_eh[self.index].item()) * self.edge_length / self.edge_area
+        )
         self.previous_voltage = 0.0
 
     def _junction_voltage(self, midpoint):

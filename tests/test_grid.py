@@ -1,6 +1,8 @@
 """Test grid.py module."""
+
 import numpy as np
 import pytest
+
 from fdtd import Grid
 
 
@@ -30,28 +32,30 @@ def test_grid_shape():
     """Test shape of grid fields."""
     grid = Grid(shape=(10, 10, 10), spacing=1e-3)
     assert grid.shape == (10, 10, 10)
-    assert grid.E.shape == grid.shape + (3, )
-    assert grid.H.shape == grid.shape + (3, )
-    assert grid.c_ee.shape == grid.shape + (3, )
-    assert grid.c_eh.shape == grid.shape + (3, )
-    assert grid.c_he.shape == grid.shape + (3, )
-    assert grid.c_hh.shape == grid.shape + (3, )
-    assert grid.cell_material.shape == grid.shape + (4, )
+    assert grid.E.shape == grid.shape + (3,)
+    assert grid.H.shape == grid.shape + (3,)
+    assert grid.c_ee.shape == grid.shape + (3,)
+    assert grid.c_eh.shape == grid.shape + (3,)
+    assert grid.c_he.shape == grid.shape + (3,)
+    assert grid.c_hh.shape == grid.shape + (3,)
+    assert grid.cell_material.shape == grid.shape + (4,)
 
 
 def test_grid_calculate_material_simple():
     """Test a simple material grid construction."""
     grid = Grid(shape=(2, 2, 2), spacing=1e-3)
-    grid.cell_material = np.array([
+    grid.cell_material = np.array(
         [
-            [[2.0, 1.0, 3.0, 0.0], [0.0, 0.0, 4.0, 0.0]],
-            [[8.0, 2.0, 0.0, 0.0], [0.4, 4.0, 0.0, 0.0]],
-        ],
-        [
-            [[2.0, 0.0, 0.4, 0.0], [0.0, 0.0, 2.0, 0.0]],
-            [[0.0, 8.0, 0.0, 9.0], [0.0, 9.0, 2.0, 1.0]],
-        ],
-    ])
+            [
+                [[2.0, 1.0, 3.0, 0.0], [0.0, 0.0, 4.0, 0.0]],
+                [[8.0, 2.0, 0.0, 0.0], [0.4, 4.0, 0.0, 0.0]],
+            ],
+            [
+                [[2.0, 0.0, 0.4, 0.0], [0.0, 0.0, 2.0, 0.0]],
+                [[0.0, 8.0, 0.0, 9.0], [0.0, 9.0, 2.0, 1.0]],
+            ],
+        ]
+    )
     grid._calculate_material_components_simple()
     for prop, mat in zip(
         [grid.eps_r, grid.mu_r, grid.sigma_e, grid.sigma_m],

@@ -5,8 +5,7 @@ from fdtd import EFieldDetector, Grid, VoltageSource
 
 def simulation():
     grid = Grid((4, 4, 4), 1e-3)
-    grid.add(VoltageSource(1e-3, 1e-3, 0, 1e-3, 1e-3, 2e-3,
-                           waveform=lambda time: 1.0))
+    grid.add(VoltageSource(1e-3, 1e-3, 0, 1e-3, 1e-3, 2e-3, waveform=lambda time: 1.0))
     detector = EFieldDetector(1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3)
     grid.add(detector)
     return grid, detector

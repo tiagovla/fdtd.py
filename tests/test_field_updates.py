@@ -1,4 +1,5 @@
 """Regression checks for staggered field updates in lossy media."""
+
 import json
 from pathlib import Path
 
@@ -22,5 +23,9 @@ def test_lossy_interior_update_matches_saved_solution():
     grid.step()
     for field in ("E", "H"):
         expected = np.asarray(case["final_" + field]).reshape(shape + (3,), order="F")
-        np.testing.assert_allclose(getattr(grid, field)[1:-1, 1:-1, 1:-1],
-                                   expected[1:-1, 1:-1, 1:-1], rtol=2e-13, atol=1e-15)
+        np.testing.assert_allclose(
+            getattr(grid, field)[1:-1, 1:-1, 1:-1],
+            expected[1:-1, 1:-1, 1:-1],
+            rtol=2e-13,
+            atol=1e-15,
+        )

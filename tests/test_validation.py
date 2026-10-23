@@ -20,8 +20,10 @@ def test_integer_scalar_spacing_is_supported():
     assert Grid((3, 3, 3), 1).spacing == (1, 1, 1)
 
 
-@pytest.mark.parametrize("kwargs", [{"n_steps": -1}, {"n_steps": 1.5},
-                                   {"total_time": 0}, {"total_time": np.inf}])
+@pytest.mark.parametrize(
+    "kwargs",
+    [{"n_steps": -1}, {"n_steps": 1.5}, {"total_time": 0}, {"total_time": np.inf}],
+)
 def test_invalid_runs_do_not_advance_state(kwargs):
     grid = Grid((3, 3, 3), 1e-3)
     with pytest.raises(ValueError):

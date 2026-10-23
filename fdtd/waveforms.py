@@ -1,4 +1,5 @@
 """This module implements waveforms to be attached to sources."""
+
 from abc import ABC, abstractmethod
 from typing import Union
 
@@ -20,8 +21,7 @@ class Waveform(ABC):
 
         return wrap
 
-    def __call__(self, time: Union[float,
-                                   np.ndarray]) -> Union[float, np.ndarray]:
+    def __call__(self, time: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
         """Call a waveform function."""
         return self.func()(time)
 
@@ -55,7 +55,12 @@ class GaussianWaveform(Waveform):
     def __init__(self, t_0: float, tau: float, amplitude: float = 1):
         """Initialize waveform."""
         super().__init__()
-        if not np.isfinite(tau) or tau <= 0 or not np.isfinite(t_0) or not np.isfinite(amplitude):
+        if (
+            not np.isfinite(tau)
+            or tau <= 0
+            or not np.isfinite(t_0)
+            or not np.isfinite(amplitude)
+        ):
             raise ValueError("Gaussian parameters must be finite with positive tau.")
         self.tau = tau
         self.t_0 = t_0
@@ -65,7 +70,7 @@ class GaussianWaveform(Waveform):
         """Return a gaussian waveform function."""
 
         def wrap(time: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
-            return self.amp * np.exp(-(((time - self.t_0) / self.tau)**2))
+            return self.amp * np.exp(-(((time - self.t_0) / self.tau) ** 2))
 
         return wrap
 
@@ -87,15 +92,18 @@ class SineWaveform(Waveform):
         Amplitude.
     """
 
-    def __init__(self,
-                 frequency: float,
-                 offset: float = 0,
-                 amplitude: float = 1):
+    def __init__(self, frequency: float, offset: float = 0, amplitude: float = 1):
         """Initialize waveform."""
         super().__init__()
-        if (not np.isfinite(frequency) or frequency < 0 or
-                not np.isfinite(offset) or not np.isfinite(amplitude)):
-            raise ValueError("Sine parameters must be finite with nonnegative frequency.")
+        if (
+            not np.isfinite(frequency)
+            or frequency < 0
+            or not np.isfinite(offset)
+            or not np.isfinite(amplitude)
+        ):
+            raise ValueError(
+                "Sine parameters must be finite with nonnegative frequency."
+            )
         self.freq = frequency
         self.offset = offset
         self.amp = amplitude
@@ -105,8 +113,7 @@ class SineWaveform(Waveform):
 
         def wrap(time: Union[float, np.ndarray]) -> Union[float, np.ndarray]:
             """Wrap function."""
-            return self.amp * \
-                    np.sin(2 * np.pi * self.freq * time - self.offset)
+            return self.amp * np.sin(2 * np.pi * self.freq * time - self.offset)
 
         return wrap
 

@@ -1,6 +1,12 @@
 import argparse
 
-from fdtd import EFieldDetector, GaussianWaveform, Grid, ImpressedElectricCurrentSource, PeriodicBoundary
+from fdtd import (
+    EFieldDetector,
+    GaussianWaveform,
+    Grid,
+    ImpressedElectricCurrentSource,
+    PeriodicBoundary,
+)
 
 
 def main():
@@ -15,8 +21,17 @@ def main():
     tau = 10 * grid.dt
     source = args.cells // 4 * 1e-3
     probe = args.cells * 3 // 4 * 1e-3
-    grid.add(ImpressedElectricCurrentSource(source, source, 0, source, source, 0,
-                                            waveform=GaussianWaveform(4.5*tau, tau)))
+    grid.add(
+        ImpressedElectricCurrentSource(
+            source,
+            source,
+            0,
+            source,
+            source,
+            0,
+            waveform=GaussianWaveform(4.5 * tau, tau),
+        )
+    )
     grid.add(EFieldDetector(probe, probe, 0, probe, probe, 0, plot=not args.no_plot))
     grid.add(PeriodicBoundary(x_direction=True, y_direction=True))
     grid.run(args.steps, progress=not args.no_plot)

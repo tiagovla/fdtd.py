@@ -40,5 +40,5 @@ def test_gaussianwaveform():
     t = np.random.uniform(0, 5, 1000)
     t_0, tau, amp = 3, 4, 2
     wf = GaussianWaveform(t_0=t_0, tau=tau, amplitude=amp)
-    y = amp * np.exp(-(((t-t_0) / tau)**2))
+    y = amp * np.exp(-(((t - t_0) / tau) ** 2))
     assert y == pytest.approx(wf(t), rel=0.01)

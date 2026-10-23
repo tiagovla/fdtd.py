@@ -9,8 +9,12 @@ def test_uniform_material_averages_preserve_values_and_zero_conductivity(shape):
     grid = Grid(shape, 1e-3)
     grid.cell_material[:] = [3.0, 2.0, 0.0, 0.0]
     grid._prepare()
-    for field, expected in [(grid.eps_r, 3), (grid.mu_r, 2),
-                             (grid.sigma_e, 0), (grid.sigma_m, 0)]:
+    for field, expected in [
+        (grid.eps_r, 3),
+        (grid.mu_r, 2),
+        (grid.sigma_e, 0),
+        (grid.sigma_m, 0),
+    ]:
         np.testing.assert_allclose(field, expected)
 
 
@@ -32,5 +36,5 @@ def test_sphere_rasterization_supports_unequal_axes():
     grid.add(Sphere(4e-3, 5e-3, 6e-3, 3e-3, material))
     grid._prepare()
     x, y, z = np.meshgrid(grid.x_c, grid.y_c, grid.z_c, indexing="ij")
-    inside = (x-4e-3)**2 + (y-5e-3)**2 + (z-6e-3)**2 <= (3e-3)**2
+    inside = (x - 4e-3) ** 2 + (y - 5e-3) ** 2 + (z - 6e-3) ** 2 <= (3e-3) ** 2
     np.testing.assert_array_equal(grid.cell_material[..., 0] == 3, inside)

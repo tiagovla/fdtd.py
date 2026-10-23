@@ -1,4 +1,5 @@
 """This module implement sources."""
+
 from __future__ import annotations
 
 import logging
@@ -10,7 +11,6 @@ import numpy as np
 
 from .bases import FDTDElementBase
 from .constants import FREESPACE_PERMITTIVITY as EPS_0
-from .constants import SPEED_LIGHT as C
 from .utils import BoundingBox, Direction
 from .waveforms import Waveform
 
@@ -71,8 +71,7 @@ class Source(FDTDElementBase):
         self.z_max = z_max
         self.resistance = resistance
         self.waveform = waveform
-        self.bounding_box = BoundingBox(x_min, x_max, y_min, y_max, z_min,
-                                        z_max)
+        self.bounding_box = BoundingBox(x_min, x_max, y_min, y_max, z_min, z_max)
         self.direction = direction
         self.name = name if name else self._create_new_name()
         self.idx_s: Optional[Tuple] = None
@@ -107,10 +106,12 @@ class Source(FDTDElementBase):
 
     def __repr__(self):
         """Dev. string representation."""
-        return (f"{self.__class__.__name__}"
-                f"[name={self.name}, waveform={self.waveform}, "
-                f"x_min={self.x_min}, y_min={self.y_min}, z_min={self.z_min}, "
-                f"x_max={self.x_max}, y_max={self.y_max}, z_max={self.z_max}]")
+        return (
+            f"{self.__class__.__name__}"
+            f"[name={self.name}, waveform={self.waveform}, "
+            f"x_min={self.x_min}, y_min={self.y_min}, z_min={self.z_min}, "
+            f"x_max={self.x_max}, y_max={self.y_max}, z_max={self.z_max}]"
+        )
 
     def plot_3d(self, ax, alpha=0.5):
         """Plot a source and attach to an axis."""
@@ -148,7 +149,8 @@ class ImpressedMagneticCurrentSource(Source):
         source_value = self.waveform(self.grid.current_time - self.grid.dt / 2)
         self.grid.H[self.i_s, self.j_s, self.k_s, self.direction.value] += (
             -self.grid.c_he[self.i_s, self.j_s, self.k_s, self.direction.value]
-            * source_value)
+            * source_value
+        )
 
     def attach_to_grid(self):
         """Attach object to grid."""
@@ -163,8 +165,7 @@ class ImpressedMagneticCurrentSource(Source):
             np.argmin(np.abs(self.grid.z - self.z_max)),
         )
 
-        logger.debug(
-            f"Source {self.name} attached to {self.idx_s} to {self.idx_e}")
+        logger.debug(f"Source {self.name} attached to {self.idx_s} to {self.idx_e}")
 
         self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
         self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
@@ -219,7 +220,8 @@ class ImpressedElectricCurrentSource(Source):
         source_value = self.waveform(self.grid.current_time - self.grid.dt / 2)
         self.grid.E[self.i_s, self.j_s, self.k_s, self.direction.value] += (
             -self.grid.c_eh[self.i_s, self.j_s, self.k_s, self.direction.value]
-            * source_value)
+            * source_value
+        )
 
     def attach_to_grid(self):
         """Attach object to grid."""
@@ -234,8 +236,7 @@ class ImpressedElectricCurrentSource(Source):
             np.argmin(np.abs(self.grid.z - self.z_max)),
         )
 
-        logger.debug(
-            f"Source {self.name} attached to {self.idx_s} to {self.idx_e}")
+        logger.debug(f"Source {self.name} attached to {self.idx_s} to {self.idx_e}")
 
         self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
         self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
@@ -303,8 +304,7 @@ class EFieldSource(Source):
             np.argmin(np.abs(self.grid.z - self.z_max)),
         )
 
-        logger.debug(
-            f"Source {self.name} attached to {self.idx_s} to {self.idx_e}")
+        logger.debug(f"Source {self.name} attached to {self.idx_s} to {self.idx_e}")
 
         self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
         self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
@@ -396,15 +396,17 @@ class VoltageSource(Source):
             self._v_f = 1 / (e[0] - s[0])
             self._r_f = (e[1] - s[1] + 1) * (e[2] - s[2] + 1) * self._v_f
             r_s *= self._r_f
-            term = (dt*dx) / (r_s*dy*dz)
+            term = (dt * dx) / (r_s * dy * dz)
             eps = self.grid.eps_r[i_s, j_s, k_s, 0] * EPS_0
             sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 0]
 
-            self.grid.c_ee[i_s, j_s, k_s, 0] = \
-                    (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[i_s, j_s, k_s, 0] = \
-                    (2*dt) / (2*eps + dt*sigma_e + term)
-            self.c_v = -(2*dt) / (2*eps + dt*sigma_e + term) / (r_s*dy*dz)
+            self.grid.c_ee[i_s, j_s, k_s, 0] = (2 * eps - dt * sigma_e - term) / (
+                2 * eps + dt * sigma_e + term
+            )
+            self.grid.c_eh[i_s, j_s, k_s, 0] = (2 * dt) / (
+                2 * eps + dt * sigma_e + term
+            )
+            self.c_v = -(2 * dt) / (2 * eps + dt * sigma_e + term) / (r_s * dy * dz)
 
         elif self.direction == Direction.Y:
             self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
@@ -413,22 +415,24 @@ class VoltageSource(Source):
             self._v_f = 1 / (e[1] - s[1])
             self._r_f = (e[0] - s[0] + 1) * (e[2] - s[2] + 1) * self._v_f
             r_s *= self._r_f
-            term = (dt*dy) / (r_s*dx*dz)
+            term = (dt * dy) / (r_s * dx * dz)
 
             eps = self.grid.eps_r[i_s, j_s, k_s, 1] * EPS_0
             sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 1]
 
-            self.grid.c_ee[i_s, j_s, k_s, 1] = \
-                    (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[i_s, j_s, k_s, 1] = \
-                    (2*dt) / (2*eps + dt*sigma_e + term)
-            self.c_v = -(2*dt) / (2*eps + dt*sigma_e + term) / (r_s*dx*dz)
+            self.grid.c_ee[i_s, j_s, k_s, 1] = (2 * eps - dt * sigma_e - term) / (
+                2 * eps + dt * sigma_e + term
+            )
+            self.grid.c_eh[i_s, j_s, k_s, 1] = (2 * dt) / (
+                2 * eps + dt * sigma_e + term
+            )
+            self.c_v = -(2 * dt) / (2 * eps + dt * sigma_e + term) / (r_s * dx * dz)
 
         else:
             self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
             self.j_s = j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             self.k_s = k_s = slice(self.idx_s[2], self.idx_e[2])
-            term = (dt*dz) / (r_s*dx*dy)
+            term = (dt * dz) / (r_s * dx * dy)
 
             self._v_f = 1 / (e[2] - s[2])
             self._r_f = (e[0] - s[0] + 1) * (e[1] - s[1] + 1) * self._v_f
@@ -436,13 +440,15 @@ class VoltageSource(Source):
             eps = self.grid.eps_r[i_s, j_s, k_s, 2] * EPS_0
             sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 2]
             r_s *= self._r_f
-            term = (dt*dz) / (r_s*dx*dy)
+            term = (dt * dz) / (r_s * dx * dy)
 
-            self.grid.c_ee[i_s, j_s, k_s, 2] = \
-                    (2*eps - dt*sigma_e - term) / (2*eps + dt*sigma_e + term)
-            self.grid.c_eh[i_s, j_s, k_s, 2] = \
-                    (2*dt) / (2*eps + dt*sigma_e + term)
-            self.c_v = -(2 * dt) / (2*eps + dt*sigma_e + term) / (r_s*dx*dy)
+            self.grid.c_ee[i_s, j_s, k_s, 2] = (2 * eps - dt * sigma_e - term) / (
+                2 * eps + dt * sigma_e + term
+            )
+            self.grid.c_eh[i_s, j_s, k_s, 2] = (2 * dt) / (
+                2 * eps + dt * sigma_e + term
+            )
+            self.c_v = -(2 * dt) / (2 * eps + dt * sigma_e + term) / (r_s * dx * dy)
 
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""

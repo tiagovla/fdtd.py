@@ -1,4 +1,5 @@
 """This module contains constants."""
+
 from math import pi
 
 PI: float = pi
