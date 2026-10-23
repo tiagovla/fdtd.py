@@ -58,7 +58,7 @@ def main():
                 beta, args.cells, args.steps, args.probes, args.seed, magnetic
             )
             bands.append((distance, frequencies, name))
-    draw(bz_path, bands, 1e-6, args.output, not args.no_plot)
+    draw(bz_path, bands, 1e-6, args.output, not args.no_plot, y_limits=(0, 1))
     print(f"Completed {len(bands)} simulations with seed {args.seed}")
 
 

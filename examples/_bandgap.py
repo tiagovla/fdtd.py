@@ -58,7 +58,7 @@ def path(dimension, intervals, period):
     )
 
 
-def draw(bz_path, bands, period, output, show):
+def draw(bz_path, bands, period, output, show, y_limits=None):
     if not output and not show:
         return
     import matplotlib.pyplot as plt
@@ -75,6 +75,8 @@ def draw(bz_path, bands, period, output, show):
         )
     ax.set_xticks(bz_path.point_locations, bz_path.point_names)
     ax.set_xlim(0, bz_path.point_locations[-1])
+    if y_limits is not None:
+        ax.set_ylim(*y_limits)
     ax.set_xlabel("Bloch wave vector")
     ax.set_ylabel(r"Frequency $\omega a/(2\pi c)$")
     ax.grid(True)
