@@ -173,7 +173,7 @@ class Sphere(Object):
         I, J, K = np.ix_(slice_x, slice_y, slice_z)
         l_m_g = grid.cell_material[I, J, K, :]
         l_x_c, l_y_c, l_z_c = np.meshgrid(grid.x_c[slice_x], grid.y_c[slice_y],
-                                          grid.z_c[slice_z])
+                                          grid.z_c[slice_z], indexing="ij")
         mask = (l_x_c - self.x_center)**2 + (l_y_c - self.y_center)**2 + (
             l_z_c - self.z_center)**2 <= self.radius**2
         l_m_g[mask, :] = [

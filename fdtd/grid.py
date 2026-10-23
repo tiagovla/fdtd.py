@@ -133,68 +133,31 @@ class Grid:
         self.sigma_m[:, :, :, :] = self.cell_material[:, :, :, 3, None]
 
     def _calculate_material_components(self):
-        """Calculate material components using average method."""
-        cel_m = self.cell_material
-        # yapf: disable
-        self.eps_r[0:-1, 1:-1, 1:-1, 0] = \
-            0.25 * (
-                cel_m[:, 1:, 1:, 0] + cel_m[:, :-1, 1:, 0] +
-                cel_m[:, 1:, :-1, 0] + cel_m[:, :-1, :-1, 0]
-            )
-        self.eps_r[1:-1, 0:-1, 1:-1, 1] = \
-            0.25 * (
-                cel_m[1:, :, 1:, 0] + cel_m[:-1, :, 1:, 0] +
-                cel_m[1:, :, :-1, 0] + cel_m[:-1, :, :-1, 0]
-            )
-        self.eps_r[1:-1, 1:-1, 0:-1, 2] = \
-            0.25 * (
-                cel_m[1:, 1:, :, 0] + cel_m[:-1, 1:, :, 0] +
-                cel_m[1:, :-1, :, 0] + cel_m[:-1, :-1, :, 0]
-            )
+        """Average cells at electric edges and magnetic faces."""
+        periodic = getattr(self, "_periodic", (False,) * 3)
 
-        self.sigma_e[0:-1, 1:-1, 1:-1, 0] = \
-            0.25 * (
-                cel_m[:, 1:, 1:, 3] + cel_m[:, :-1, 1:, 3] +
-                cel_m[:, 1:, :-1, 3] + cel_m[:, :-1, :-1, 3]
-            )
-        self.sigma_e[1:-1, 0:-1, 1:-1, 1] = \
-            0.25 * (
-                cel_m[1:, :, 1:, 3] + cel_m[:-1, :, 1:, 3] +
-                cel_m[1:, :, :-1, 3] + cel_m[:-1, :, :-1, 3]
-            )
-        self.sigma_e[1:-1, 1:-1, 0:-1, 2] = \
-            0.25 * (
-                cel_m[1:, 1:, :, 3] + cel_m[:-1, 1:, :, 3] +
-                cel_m[1:, :-1, :, 3] + cel_m[:-1, :-1, :, 3]
-            )
+        def previous(values, axis):
+            shifted = np.roll(values, 1, axis=axis)
+            if not periodic[axis]:
+                index = [slice(None)] * 3
+                index[axis] = 0
+                shifted[tuple(index)] = values[tuple(index)]
+            return shifted
 
-        self.mu_r[1:-1, 0:-1, 0:-1, 0] = \
-            2 * (cel_m[1:, :, :, 1]*cel_m[:-1, :, :, 1]) / \
-            (cel_m[1:, :, :, 1] + cel_m[:-1, :, :, 1])
-
-        self.mu_r[0:-1, 1:-1, 0:-1, 1] = \
-            2 * (cel_m[:, 1:, :, 1]*cel_m[:, :-1, :, 1]) / \
-            (cel_m[:, 1:, :, 1] + cel_m[:, :-1, :, 1])
-
-        self.mu_r[0:-1, 0:-1, 1:-1, 2] = \
-            2 * (cel_m[:, :, 1:, 1]*cel_m[:, :, :-1, 1]) / \
-            (cel_m[:, :, 1:, 1] + cel_m[:, :, :-1, 1])
-
-        self.sigma_m[1:-1, 0:-1, 0:-1, 0] = \
-            2 * (cel_m[1:, :, :, 3]*cel_m[:-1, :, :, 3]) / \
-            (cel_m[1:, :, :, 3] + cel_m[:-1, :, :, 3])
-
-        self.sigma_m[0:-1, 1:-1, 0:-1, 1] = \
-            2 * (cel_m[:, 1:, :, 3]*cel_m[:, :-1, :, 3]) / \
-            (cel_m[:, 1:, :, 3] + cel_m[:, :-1, :, 3])
-
-        self.sigma_m[0:-1, 0:-1, 1:-1, 2] = \
-            2 * (cel_m[:, :, 1:, 3]*cel_m[:, :, :-1, 3]) / \
-            (cel_m[:, :, 1:, 3] + cel_m[:, :, :-1, 3])
-        # yapf: enable
-
-    def average_parameters(self):
-        """Average the surrounding parameters."""
+        for component in range(3):
+            for target, column in ((self.eps_r, 0), (self.sigma_e, 2)):
+                values = self.cell_material[..., column].copy()
+                for axis in range(3):
+                    if axis != component and self.shape[axis] > 1:
+                        values = (values + previous(values, axis)) / 2
+                target[..., component] = values
+            for target, column in ((self.mu_r, 1), (self.sigma_m, 3)):
+                values = self.cell_material[..., column]
+                adjacent = previous(values, component)
+                total = values + adjacent
+                target[..., component] = np.divide(
+                    2 * values * adjacent, total, out=np.zeros_like(values),
+                    where=total != 0)
 
     @property
     def x_min(self) -> float:
@@ -245,7 +208,7 @@ class Grid:
         for bc in self.boundaries:
             bc.attach_to_grid()
 
-        self._calculate_material_components_simple()
+        self._calculate_material_components()
 
         for obj in self.objects:
             if isinstance(obj, Brick):
