@@ -113,9 +113,12 @@ class Resistor(LumpedElement):
         y_max: float,
         z_max: float,
         resistance: float = 50,
+        name: Optional[str] = None,
+        direction: Direction = Direction.Z,
     ):
         """Initialize the object."""
-        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max)
+        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name,
+                         direction)
         self.resistance = resistance
 
     def __repr__(self):
@@ -197,14 +200,12 @@ class Capacitor(LumpedElement):
         y_max: float,
         z_max: float,
         capacitance: float = 1e-9,
+        name: Optional[str] = None,
+        direction: Direction = Direction.Z,
     ):
         """Initialize the object."""
-        self.x_min = x_min
-        self.y_min = y_min
-        self.z_min = z_min
-        self.x_max = x_max
-        self.y_max = y_max
-        self.z_max = z_max
+        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name,
+                         direction)
         self.capacitance = capacitance
 
     def __repr__(self):
@@ -287,14 +288,12 @@ class Inductor(LumpedElement):
                  y_max: float,
                  z_max: float,
                  resistance: float = 50,
-                 inductance: float = 1e-6):
+                 inductance: float = 1e-6,
+                 name: Optional[str] = None,
+                 direction: Direction = Direction.Z):
         """Initialize the object."""
-        self.x_min = x_min
-        self.y_min = y_min
-        self.z_min = z_min
-        self.x_max = x_max
-        self.y_max = y_max
-        self.z_max = z_max
+        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name,
+                         direction)
         self.resistance = resistance
         self.inductance = inductance
 
@@ -311,12 +310,10 @@ class Diode(LumpedElement):
         y_max: float,
         z_max: float,
         resistance: float = 50,
+        name: Optional[str] = None,
+        direction: Direction = Direction.Z,
     ):
         """Initialize the object."""
-        self.x_min = x_min
-        self.y_min = y_min
-        self.z_min = z_min
-        self.x_max = x_max
-        self.y_max = y_max
-        self.z_max = z_max
+        super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name,
+                         direction)
         self.resistance = resistance
