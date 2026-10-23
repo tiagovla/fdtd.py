@@ -4,13 +4,48 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+env:
+  MPLBACKEND: Agg
+  UV_LINK_MODE: copy
+
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.11", "3.13"]
+        python-version: ["3.8", "3.11", "3.15"]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uv run --all-groups --python ${{ matrix.python-version }} pytest -q
+        with:
+          version: "0.13.0"
+          enable-cache: true
+      - run: uv run --locked --extra examples --python ${{ matrix.python-version }} pytest -q
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.0"
+      - run: uv run --locked --python 3.15 ruff check fdtd examples tests
+      - run: uv run --locked --python 3.15 ruff format --check fdtd examples tests
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.0"
+      - run: uv build --python 3.15
+      - name: Install and run the wheel without development dependencies
+        run: |
+          uv venv --python 3.15 "$RUNNER_TEMP/fdtd-wheel"
+          uv pip install --python "$RUNNER_TEMP/fdtd-wheel/bin/python" dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/fdtd-wheel/bin/python" -c "import sys, fdtd; fdtd.Grid((8, 1, 1), 1e-3).run(2, progress=False); assert 'matplotlib' not in sys.modules"
