@@ -11,21 +11,22 @@ dependencies = [
     "matplotlib>=3.3.3",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=5.2",
+]
+
 [tool.poetry]
 packages = [
     {include = "fdtd", from="."}
 ]
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^5.2"
-Sphinx = "^3.5.1"
-sphinx-rtd-theme = "^0.5.1"
-sphinx-autodoc-typehints = "^1.11.1"
-scipy = "^1.6.1"
-"morpho.py" = "0.0.3"
-
-[tool.poetry.extras]
-docs = ["sphinx"]
+[project.optional-dependencies]
+docs = [
+    "Sphinx>=3.5.1",
+    "sphinx-rtd-theme>=0.5.1",
+    "sphinx-autodoc-typehints>=1.11.1",
+]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
