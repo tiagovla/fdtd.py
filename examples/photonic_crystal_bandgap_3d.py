@@ -6,6 +6,7 @@ import logging
 import os
 import random
 from logging.config import fileConfig
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,7 +45,7 @@ bz_path = BZPath([D, Z, G, Z, T, X], t1, t2, t3, n_points=n_points)
 
 print("Loading materials...")
 
-Material.load("materials.json")
+Material.load(Path(__file__).with_name("materials.json"))
 
 print("Creating grid...")
 

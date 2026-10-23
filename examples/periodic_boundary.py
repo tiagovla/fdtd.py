@@ -1,16 +1,17 @@
 import logging
 from logging.config import fileConfig
+from pathlib import Path
 
 from fdtd import EFieldDetector, Grid, Material
 from fdtd.boundaries import PeriodicBoundary
 from fdtd.sources import ImpressedElectricCurrentSource as JSource
 
 # Setting up logger
-fileConfig("logging_config.ini")
+fileConfig(Path(__file__).with_name("logging_config.ini"))
 logger = logging.getLogger("fdtd")
 
 print("Loading materials...")
-Material.load("materials.json")
+Material.load(Path(__file__).with_name("materials.json"))
 
 print("Creating grid...")
 grid = Grid(shape=(600, 600, 1), spacing=1e-3)
