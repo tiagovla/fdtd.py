@@ -24,6 +24,10 @@ packages = [
 
 [project.optional-dependencies]
 plot = ["matplotlib>=3.3.3"]
+examples = [
+    "matplotlib>=3.3.3", "scipy>=1.6.1",
+    "morpho.py>=0.1.0; python_version >= '3.9' and python_version < '3.16'",
+]
 docs = [
     "Sphinx>=3.5.1",
     "sphinx-rtd-theme>=0.5.1",

@@ -1,152 +1,61 @@
-"""Implements a 3d bandgap calculation."""
 import concurrent.futures
-import copy
-import itertools
-import logging
-import os
-import random
-from logging.config import fileConfig
-from pathlib import Path
+import multiprocessing
 
-import matplotlib.pyplot as plt
 import numpy as np
-from morpho import BrillouinZonePath as BZPath
-from morpho import SymmetryPoint as SPoint
-from scipy.signal import find_peaks
 
-from fdtd import EFieldDetector, Grid, Material
-from fdtd.boundaries import PeriodicBlochBoundary as PBBoundary
-from fdtd.constants import SPEED_LIGHT as C
-from fdtd.objects import Brick
-from fdtd.sources import ImpressedElectricCurrentSource as JSource
+from _bandgap import arguments, dielectric, draw, path
+from fdtd import Brick, EFieldDetector, GaussianWaveform, Grid, ImpressedElectricCurrentSource, PeriodicBlochBoundary
 from fdtd.utils import Direction
-from fdtd.waveforms import GaussianWaveform
-
-# Setting up logger
-# fileConfig("logging_config.ini")
-logger = logging.getLogger("fdtd")
-
-# geometry
-a = 1e-6
-w = 0.2 * a
-n_steps = 20000
-n_points = 50
-
-# Define the symmetry points
-G = SPoint((0, 0, 0), "Γ")
-Z = SPoint((0, 0, 1 / 2), "Z")
-X = SPoint((1 / 2, 0, 0), "X")
-D = SPoint((1 / 2, 1 / 2, 1 / 2), "D")
-T = SPoint((1 / 2, 0, 1 / 2), "T")
-
-t1, t2, t3 = (a, 0, 0), (0, a, 0), (0, 0, a)
-
-# Construct the bloch wave path
-bz_path = BZPath([D, Z, G, Z, T, X], t1, t2, t3, n_points=n_points)
-
-print("Loading materials...")
-
-Material.load(Path(__file__).with_name("materials.json"))
-
-print("Creating grid...")
-
-grid = Grid(shape=(64, 64, 64), spacing=(1/64) * 1e-6, courant_factor=0.5)
-
-print("Creating components...")
-
-j_sources = []
-e_detectors = []
-
-dir_gen = itertools.cycle([Direction.X, Direction.Y, Direction.Z])
-waveform = GaussianWaveform(t_0=1e-15, tau=2e-16)
-for _ in range(30):
-    point = (
-        random.uniform(0.2e-6, 0.8e-6),
-        random.uniform(0.2e-6, 0.8e-6),
-        random.uniform(0.2e-6, 0.8e-6),
-    )
-    j_source = JSource(*point, *point, waveform=waveform,
-                        direction=next(dir_gen))
-    j_sources.append(j_source)
-
-for _ in range(30):
-    point = (
-        random.uniform(0.2e-6, 0.8e-6),
-        random.uniform(0.2e-6, 0.8e-6),
-        random.uniform(0.2e-6, 0.8e-6),
-    )
-    e_detector = EFieldDetector(*point, *point, direction=next(dir_gen))
-    e_detectors.append(e_detector)
-
-diel = Material(name="diel", eps_r=2.43)
-
-b1 = Brick(*(0, 0, 0), *(0.5 * w, 0.5 * w, a), material=diel)
-b2 = Brick(*(0, a - 0.5*w, 0), *(0.5 * w, a, a), material=diel)
-b3 = Brick(*(a - 0.5*w, 0, 0), *(a, 0.5 * w, a), material=diel)
-b4 = Brick(*(a - 0.5*w, a - 0.5*w, 0), *(a, a, a), material=diel)
-b5 = Brick(*(0, 0, 0), *(a, 0.5 * w, 0.5 * w), material=diel)
-b6 = Brick(*(0, 0, a - 0.5*w), *(a, 0.5 * w, a), material=diel)
-b7 = Brick(*(0, a - 0.5*w, 0), *(a, a, 0.5 * w), material=diel)
-b8 = Brick(*(0, a - 0.5*w, a - 0.5*w), *(a, a, a), material=diel)
-b9 = Brick(*(0, 0, 0), *(0.5 * w, a, 0.5 * w), material=diel)
-b10 = Brick(*(0, 0, a - 0.5*w), *(0.5 * w, a, a), material=diel)
-b11 = Brick(*(a - 0.5*w, 0, 0), *(a, a, 0.5 * w), material=diel)
-b12 = Brick(*(a - 0.5*w, 0, a - 0.5*w), *(a, a, a), material=diel)
-
-bricks = [b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12]
-
-p_boundary = PBBoundary(x_direction=True, y_direction=True, z_direction=True)
-
-print("Adding components to grid...")
-for brick in bricks:
-    grid.add(brick)
-
-for j_source in j_sources:
-    grid.add(j_source)
-
-for e_detector in e_detectors:
-    grid.add(e_detector)
-grid.add(p_boundary)
-
-print("Running simulation...")
 
 
-def simulation(beta):
-    sim_grid = copy.deepcopy(grid)
-    if sim_grid.boundaries:
-        sim_grid.boundaries[0].b_vec = (beta[0], beta[1], beta[2])
-    sim_grid.reset()
-    sim_grid.run(n_steps=n_steps)
+def simulation(job):
+    from scipy.signal import find_peaks
 
-    psd = np.zeros((n_steps // 2, ))
-    for e_detector in sim_grid.detectors:
-        e_detector.pos_processing()
-        psd += np.abs(e_detector.values_freq)**2
+    beta, cells, steps, probes, seed = job
+    period = 1e-6
+    width = 0.1 * period
+    spacing = period / cells
+    grid = Grid((cells, cells, cells), spacing, courant_factor=0.5)
+    material = dielectric("bandgap-3d", 2.43)
+    for long_axis in range(3):
+        transverse = [d for d in range(3) if d != long_axis]
+        for first in (0, period-width):
+            for second in (0, period-width):
+                lower, upper = np.zeros(3), np.full(3, period)
+                lower[transverse] = (first, second)
+                upper[transverse] = (first+width, second+width)
+                grid.add(Brick(*lower, *upper, material))
+    grid.add(PeriodicBlochBoundary(tuple(beta), True, True, True))
+    rng = np.random.default_rng(seed)
+    waveform = GaussianWaveform(45*grid.dt, 10*grid.dt)
+    for i in range(probes):
+        point = rng.integers(1, cells-1, 3) * spacing
+        direction = Direction(i % 3)
+        grid.add(ImpressedElectricCurrentSource(*point, *point, waveform=waveform, direction=direction))
+        point = rng.integers(1, cells-1, 3) * spacing
+        grid.add(EFieldDetector(*point, *point, direction=direction))
+    grid.run(steps, progress=False)
+    spectra = [detector.post_process()[1] for detector in grid.detectors]
+    power = np.sum(np.abs(spectra)**2, axis=0)
+    peaks, _ = find_peaks(power)
+    return grid.detectors[0].freq[peaks]
 
-    peaks, _ = find_peaks(np.abs(psd), threshold=1e-25)
-    return sim_grid.detectors[0].freq[peaks]
+
+def main():
+    args = arguments(3)
+    bz_path = path(3, args.points, 1e-6)
+    betas = bz_path.betas
+    jobs = [(beta, args.cells, args.steps, args.probes, args.seed) for beta in betas.values.T]
+    if args.workers == 1:
+        results = list(map(simulation, jobs))
+    else:
+        with concurrent.futures.ProcessPoolExecutor(
+                max_workers=min(args.workers, len(jobs)), mp_context=multiprocessing.get_context("spawn")) as executor:
+            results = list(executor.map(simulation, jobs))
+    bands = [(distance, frequencies, "3D") for distance, frequencies in zip(betas.cumsum, results)]
+    draw(bz_path, bands, 1e-6, args.output, not args.no_plot)
+    print(f"Completed {len(bands)} simulations with seed {args.seed}")
 
 
-betas = [bz_path.beta_vec[:, col] for col in range(bz_path.beta_vec.shape[1])]
-betas_len = bz_path.beta_vec_len
-
-fig, ax = plt.subplots(figsize=(5, 4))
-plt.style.use("seaborn-ticks")
-ax.set_xticklabels(bz_path.symmetry_names)
-ax.set_xticks(bz_path.symmetry_locations)
-ax.set_xlim(0, bz_path.symmetry_locations[-1])
-ax.set_ylim(0, 1.6)
-ax.set_xlabel(r"Bloch Wave Vector $\beta$")
-ax.set_ylabel(r"Frequency ${\omega a}/{2\pi c}$")
-plt.tight_layout()
-ax.grid(True)
-
-with concurrent.futures.ProcessPoolExecutor(
-        max_workers=os.cpu_count()) as executor:
-    for beta_len, fs in zip(betas_len, executor.map(simulation, betas)):
-        print(beta_len, fs)
-        ax.scatter(beta_len * (1 + 0*fs), fs * a / C)
-        fig.savefig("result.png")
-        fig.savefig("result.svg")
-
-plt.show()
+if __name__ == "__main__":
+    main()

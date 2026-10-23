@@ -1,36 +1,27 @@
-import logging
-from logging.config import fileConfig
-from pathlib import Path
+import argparse
 
-from fdtd import EFieldDetector, Grid, Material
-from fdtd.boundaries import PeriodicBoundary
-from fdtd.sources import ImpressedElectricCurrentSource as JSource
-from fdtd.waveforms import GaussianWaveform
+from fdtd import EFieldDetector, GaussianWaveform, Grid, ImpressedElectricCurrentSource, PeriodicBoundary
 
-# Setting up logger
-fileConfig(Path(__file__).with_name("logging_config.ini"))
-logger = logging.getLogger("fdtd")
 
-print("Loading materials...")
-Material.load(Path(__file__).with_name("materials.json"))
+def main():
+    parser = argparse.ArgumentParser(description="Periodic two-dimensional propagation")
+    parser.add_argument("--cells", type=int, default=64)
+    parser.add_argument("--steps", type=int, default=500)
+    parser.add_argument("--no-plot", action="store_true")
+    args = parser.parse_args()
+    if args.cells < 4:
+        parser.error("--cells must be at least 4")
+    grid = Grid((args.cells, args.cells, 1), 1e-3)
+    tau = 10 * grid.dt
+    source = args.cells // 4 * 1e-3
+    probe = args.cells * 3 // 4 * 1e-3
+    grid.add(ImpressedElectricCurrentSource(source, source, 0, source, source, 0,
+                                            waveform=GaussianWaveform(4.5*tau, tau)))
+    grid.add(EFieldDetector(probe, probe, 0, probe, probe, 0, plot=not args.no_plot))
+    grid.add(PeriodicBoundary(x_direction=True, y_direction=True))
+    grid.run(args.steps, progress=not args.no_plot)
+    print(f"Completed {grid.current_time_step} steps")
 
-print("Creating grid...")
-grid = Grid(shape=(600, 600, 1), spacing=1e-3)
 
-print("Creating components...")
-j_source = JSource(*(40e-3, 40e-3, 0e-3), *(40e-3, 40e-3, 0e-3),
-                   waveform=GaussianWaveform(t_0=1e-9, tau=2e-10))
-# e_detector = EFieldDetector(*(95e-3, 95e-3, 0), *(95e-3, 95e-3, 0), plot=True)
-e_detector = EFieldDetector(*(0, 0, 0), *(99999e-3, 99999e-3, 0), plot=True)
-p_boundary = PeriodicBoundary(x_direction=True, y_direction=True)
-
-print("Adding components to grid...")
-grid.add(j_source)
-grid.add(e_detector)
-grid.add(p_boundary)
-
-print("Running simulation...")
-grid.run(n_steps=2000)
-
-print("Showing results...")
-# plot results
+if __name__ == "__main__":
+    main()
