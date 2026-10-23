@@ -9,12 +9,12 @@ readme = "README.md"
 dependencies = [
     "numpy>=1.19.5",
     "tqdm>=4.57.0",
-    "matplotlib>=3.3.3",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=5.2",
+    "matplotlib>=3.3.3",
 ]
 
 [tool.poetry]
@@ -23,6 +23,7 @@ packages = [
 ]
 
 [project.optional-dependencies]
+plot = ["matplotlib>=3.3.3"]
 docs = [
     "Sphinx>=3.5.1",
     "sphinx-rtd-theme>=0.5.1",

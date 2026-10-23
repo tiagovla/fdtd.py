@@ -1,15 +1,13 @@
-import matplotlib.pyplot as plt
-
-from .grid import Grid
-
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection="3d")
-# ax.plot([1, 2, 3, 4, 5], [7, 4, 6, 2, 8], [4, 6, 8, 9, 2], "*")
-# ax.grid(True)
-# ax.set_title("grid on")
-
-# plt.show()
+"""Optional plotting support."""
 
 
-def visualize_grid(grid: Grid):
-    """Visualize grid."""
+def pyplot():
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as error:
+        raise ImportError("Plotting requires the 'plot' extra: pip install 'fdtd.py[plot]'.") from error
+    return plt
+
+
+def visualize_grid(grid):
+    return grid.plot_3d()

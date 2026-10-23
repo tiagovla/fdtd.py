@@ -2,8 +2,9 @@
 from abc import ABC, abstractmethod
 from typing import Union
 
-import matplotlib.pyplot as plt
 import numpy as np
+
+from .plotting import pyplot
 
 
 class Waveform(ABC):
@@ -26,6 +27,7 @@ class Waveform(ABC):
 
     def plot(self, time: np.ndarray):
         """Plot waveform for a given time array."""
+        plt = pyplot()
         y = self.func()(time)
         fig = plt.figure()
         ax = fig.add_subplot(111)

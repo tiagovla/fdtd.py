@@ -4,10 +4,10 @@ from itertools import product
 from math import prod
 from numbers import Integral
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from .bases import FDTDElementBase
+from .plotting import pyplot
 from .utils import BoundingBox, Direction
 
 
@@ -184,6 +184,7 @@ class Detector(FDTDElementBase):
         if not count:
             return
         values = transforms[component](self.captured[..., :count])
+        plt = pyplot()
         _, ax = plt.subplots()
         ax.plot(self.time[:count], values.reshape(-1, count).T)
         ax.set_xlabel("Time [s]")

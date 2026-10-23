@@ -6,7 +6,6 @@ from math import floor
 from numbers import Integral, Real
 from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
-import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
@@ -17,6 +16,7 @@ from .constants import SPEED_LIGHT
 from .detectors import Detector
 from .lumped_elements import LumpedElement
 from .objects import Brick, Object
+from .plotting import pyplot
 from .sources import Source
 from .utils import curl_E, curl_H, validate_node_bounds
 
@@ -365,6 +365,7 @@ class Grid:
 
     def plot_planes(self) -> None:
         """Plot material."""
+        plt = pyplot()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
         # X, Y = np.meshgrid(np.arange(0, self.Nx + 1),
@@ -401,6 +402,7 @@ class Grid:
 
     def plot_disc2(self):
         """Plot material."""
+        plt = pyplot()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
 
@@ -422,6 +424,7 @@ class Grid:
 
     def plot_disc3(self):
         """Plot material."""
+        plt = pyplot()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
         X, Y, Z = np.meshgrid(self.x, self.y, self.z)
@@ -440,6 +443,7 @@ class Grid:
 
     def plot_disc(self) -> None:
         """Plot material."""
+        plt = pyplot()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
         X, Y, Z = np.meshgrid(self.x_c, self.y_c, self.z_c)
@@ -458,6 +462,7 @@ class Grid:
 
     def plot_3d(self, z_view: bool = False):
         """Plot grid."""
+        plt = pyplot()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
 
