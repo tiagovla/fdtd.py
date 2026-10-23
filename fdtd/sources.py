@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from abc import abstractmethod
 from functools import partial
 from typing import Callable, Optional, Tuple, Union
 
@@ -58,6 +59,10 @@ class Source(FDTDElementBase):
     ):
         """Initialize the object."""
         super().__init__()
+        if not isinstance(direction, Direction):
+            raise ValueError("direction must be a Direction value.")
+        if not callable(waveform):
+            raise ValueError("waveform must be callable.")
         self.x_min = x_min
         self.y_min = y_min
         self.z_min = z_min
@@ -78,6 +83,7 @@ class Source(FDTDElementBase):
         self.j_s: Optional[slice] = None
         self.k_s: Optional[slice] = None
 
+    @abstractmethod
     def attach_to_grid(self):
         """Attach object to grid."""
         self.idx_s = (

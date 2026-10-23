@@ -53,6 +53,8 @@ class GaussianWaveform(Waveform):
     def __init__(self, t_0: float, tau: float, amplitude: float = 1):
         """Initialize waveform."""
         super().__init__()
+        if not np.isfinite(tau) or tau <= 0 or not np.isfinite(t_0) or not np.isfinite(amplitude):
+            raise ValueError("Gaussian parameters must be finite with positive tau.")
         self.tau = tau
         self.t_0 = t_0
         self.amp = amplitude
@@ -89,6 +91,9 @@ class SineWaveform(Waveform):
                  amplitude: float = 1):
         """Initialize waveform."""
         super().__init__()
+        if (not np.isfinite(frequency) or frequency < 0 or
+                not np.isfinite(offset) or not np.isfinite(amplitude)):
+            raise ValueError("Sine parameters must be finite with nonnegative frequency.")
         self.freq = frequency
         self.offset = offset
         self.amp = amplitude

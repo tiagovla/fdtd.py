@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from math import floor
+from numbers import Integral, Real
 from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -17,7 +18,7 @@ from .detectors import Detector
 from .lumped_elements import LumpedElement
 from .objects import Brick, Object
 from .sources import Source
-from .utils import curl_E, curl_H
+from .utils import curl_E, curl_H, validate_node_bounds
 
 if TYPE_CHECKING:
     from .objects import Object
@@ -35,16 +36,20 @@ class Grid:
         courant_factor: float = 0.9,
     ):
         """Initialize the grid."""
-        if isinstance(spacing, float):
-            self.spacing = (spacing, spacing, spacing)
-        else:
-            self.spacing = spacing
+        if len(shape) != 3 or any(isinstance(n, bool) or not isinstance(n, Integral)
+                                  or n < 1 for n in shape) or max(shape) == 1:
+            raise ValueError("shape must contain three positive integers and an active axis.")
+        spacing = (spacing,) * 3 if isinstance(spacing, Real) else tuple(spacing)
+        if len(spacing) != 3 or any(not isinstance(d, Real) or isinstance(d, bool)
+                                    or not np.isfinite(d) or d <= 0 for d in spacing):
+            raise ValueError("spacing must contain three finite positive values.")
+        self.spacing = tuple(float(d) for d in spacing)
 
         self.dx, self.dy, self.dz = self.spacing
         self.Nx, self.Ny, self.Nz = shape
         self.dim = sum([1 for s in self.shape if s > 1])
 
-        if 0 < courant_factor < 1:
+        if isinstance(courant_factor, Real) and np.isfinite(courant_factor) and 0 < courant_factor < 1:
             self.courant_factor = courant_factor
         else:
             raise ValueError(
@@ -207,6 +212,14 @@ class Grid:
         for obj in self.objects:
             obj.attach_to_grid()
 
+        if (self.cell_material.shape != self.shape + (4,) or
+                not np.all(np.isfinite(self.cell_material)) or
+                np.any(self.cell_material[..., :2] <= 0) or
+                np.any(self.cell_material[..., 2:] < 0)):
+            raise ValueError("Material grid requires positive eps/mu and nonnegative conductivities.")
+        for element in (*self.sources, *self.lumped_elements, *self.detectors):
+            validate_node_bounds(self, element)
+
         self._periodic = [False, False, False]
         self._phases = np.ones(3, dtype=complex)
         for bc in self.boundaries:
@@ -236,9 +249,18 @@ class Grid:
 
         Use restart=True, or call reset(), to start again from zero fields.
         """
+        if total_time is None:
+            if isinstance(n_steps, bool) or not isinstance(n_steps, Integral) or n_steps <= 0:
+                raise ValueError("n_steps must be a positive integer.")
+            steps = int(n_steps)
+        else:
+            if not isinstance(total_time, Real) or not np.isfinite(total_time) or total_time <= 0:
+                raise ValueError("total_time must be finite and positive.")
+            steps = floor(total_time / self.dt + 1e-12)
+            if steps < 1:
+                raise ValueError("total_time must cover at least one time step.")
         if restart:
             self.reset()
-        steps = n_steps if total_time is None else floor(total_time / self.dt)
         self.n_steps = self.current_time_step + steps
 
         logger.info("Preparing sources, objects, detectors...")
@@ -303,6 +325,12 @@ class Grid:
     def add(self, elm: Union[Object, Source, LumpedElement, Detector,
                              Boundary]):
         """Add element to grid."""
+        if not isinstance(elm, (Object, Source, LumpedElement, Detector, Boundary)):
+            raise TypeError("Unsupported grid element.")
+        if self.current_time_step:
+            raise RuntimeError("Reset the grid before changing its components.")
+        if isinstance(elm, (Source, LumpedElement, Detector)):
+            validate_node_bounds(self, elm)
         elm._register_grid(self)
         if isinstance(elm, Object):
             self.objects.append(elm)
@@ -315,6 +343,19 @@ class Grid:
         elif isinstance(elm, Boundary):
             self.boundaries.append(elm)
         self._prepared = False
+
+    def remove(self, element):
+        if self.current_time_step:
+            raise RuntimeError("Reset the grid before changing its components.")
+        for collection in (self.objects, self.sources, self.lumped_elements,
+                           self.detectors, self.boundaries):
+            if element in collection:
+                collection.remove(element)
+                element.grid = None
+                element.reset()
+                self._prepared = False
+                return
+        raise ValueError("Element is not registered with this grid.")
 
     def plot_planes(self) -> None:
         """Plot material."""

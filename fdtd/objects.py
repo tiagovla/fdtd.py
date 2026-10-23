@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from abc import abstractmethod
 from functools import partial
 from typing import Optional, Union
 
@@ -31,6 +32,7 @@ class Object(FDTDElementBase):
 
         self.name = name if name else self._create_new_name()
 
+    @abstractmethod
     def attach_to_grid(self):
         """Attach object to grid."""
 
@@ -143,6 +145,8 @@ class Sphere(Object):
     ):
         """Initialize the object."""
         super().__init__(material, name)
+        if not np.isfinite(radius) or radius <= 0:
+            raise ValueError("Sphere radius must be finite and positive.")
         self.x_center = x_center
         self.y_center = y_center
         self.z_center = z_center

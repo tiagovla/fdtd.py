@@ -1,7 +1,7 @@
 """This module contains base classes."""
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Optional
 
 from .exceptions import AlreadyRegistered
@@ -32,8 +32,10 @@ class FDTDElementBase(ABC):
         cls.quantity += 1
         return f"{cls.__name__}_{cls.quantity}"
 
+    @abstractmethod
     def attach_to_grid(self):
         """Attach object to grid."""
+        raise NotImplementedError
 
     def reset(self):
         """Clear dynamic state; stateless elements need no reset work."""
@@ -41,4 +43,4 @@ class FDTDElementBase(ABC):
     def detach_from_grid(self):
         """Detach from grid."""
         if self.grid:
-            self.grid = None
+            self.grid.remove(self)

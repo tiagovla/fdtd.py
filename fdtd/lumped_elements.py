@@ -51,6 +51,8 @@ class LumpedElement(FDTDElementBase):
     ):
         """Initialize the lumped element."""
         super().__init__()
+        if not isinstance(direction, Direction):
+            raise ValueError("direction must be a Direction value.")
         self.x_min = x_min
         self.y_min = y_min
         self.z_min = z_min

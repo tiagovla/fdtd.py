@@ -28,9 +28,22 @@ class BoundingBox:
 
     def __post_init__(self):
         """Check bounding constraints."""
+        values = (self.x_min, self.x_max, self.y_min, self.y_max, self.z_min, self.z_max)
+        if not all(np.isscalar(v) and np.isreal(v) and np.isfinite(v) for v in values):
+            raise ValueError("Bounding coordinates must be finite real numbers.")
         if (self.x_max < self.x_min or self.y_max < self.y_min
                 or self.z_max < self.z_min):
             raise WrongBounding
+
+
+def validate_node_bounds(grid, element):
+    for coordinates, lower, upper in zip(
+            (grid.x, grid.y, grid.z),
+            (element.x_min, element.y_min, element.z_min),
+            (element.x_max, element.y_max, element.z_max)):
+        tolerance = max(abs(coordinates[-1]), grid.dx, grid.dy, grid.dz) * 1e-12
+        if lower < -tolerance or upper > coordinates[-1] + tolerance:
+            raise ValueError("Component bounds extend beyond the stored grid nodes.")
 
 
 def _add_periodic_curl(curl, field, spacing, periodic, phases, forward):
