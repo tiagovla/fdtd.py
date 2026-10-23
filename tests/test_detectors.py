@@ -1,7 +1,13 @@
 import numpy as np
 import pytest
 
-from fdtd import EFieldDetector, Grid, HFieldDetector, VoltageDetector
+from fdtd import (
+    EFieldDetector,
+    Grid,
+    HFieldDetector,
+    PeriodicBlochBoundary,
+    VoltageDetector,
+)
 from fdtd.utils import Direction
 
 
@@ -89,3 +95,17 @@ def test_large_capture_fails_before_allocating_storage():
         grid.run(100, progress=False)
     assert detector.captured is None
     assert grid.current_time_step == 0
+
+
+def test_interpolated_probe_wraps_with_bloch_phase():
+    grid = Grid((8, 1, 1), 1e-3)
+    beta = 137.0
+    grid.add(PeriodicBlochBoundary((beta, 0, 0), x_direction=True))
+    detector = EFieldDetector(0, 0, 0, 0, 0, 0, direction=Direction.X, interpolate=True)
+    grid.add(detector)
+    grid.n_steps = 1
+    grid._prepare()
+    k = 2 * np.pi / grid.x_max + beta
+    grid.E[:, 0, 0, 0] = np.exp(-1j * k * (grid.x + grid.dx / 2))
+    detector.update()
+    assert detector.captured.item() == pytest.approx(np.cos(k * grid.dx / 2))

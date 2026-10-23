@@ -159,9 +159,20 @@ class Detector(FDTDElementBase):
         values = np.zeros(self.size, dtype=field.dtype)
         for shifts in product((0, 1), repeat=len(axes)):
             indices = [np.arange(s.start, s.stop) for s in self.slices]
+            weight = np.ones(self.size, dtype=field.dtype)
             for axis, shift in zip(axes, shifts):
-                indices[axis] = np.maximum(indices[axis] - shift, 0)
-            values += field[np.ix_(*indices)] / (2 ** len(axes))
+                shifted = indices[axis] - shift
+                if self.grid._periodic[axis]:
+                    crossing = shifted < 0
+                    indices[axis] = shifted % self.grid.shape[axis]
+                    shape = [1, 1, 1]
+                    shape[axis] = self.size[axis]
+                    weight *= np.where(
+                        crossing, 1 / self.grid._phases[axis], 1
+                    ).reshape(shape)
+                else:
+                    indices[axis] = np.maximum(shifted, 0)
+            values += field[np.ix_(*indices)] * weight / (2 ** len(axes))
         return values
 
     def update(self):
