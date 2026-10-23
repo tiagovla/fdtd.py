@@ -1,21 +1,22 @@
-[tool.poetry]
+[project]
 name = "fdtd.py"
 version = "0.0.3"
 description = ""
 license = "MIT"
-authors = ["Tiago Vilela <tiagovla@gmail.com>"]
+authors = [{name = "Tiago Vilela", email = "tiagovla@gmail.com"}]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.19.5",
+    "tqdm>=4.57.0",
+    "matplotlib>=3.3.3",
+]
 
+[tool.poetry]
 packages = [
     {include = "fdtd", from="."}
 ]
 
-[tool.poetry.dependencies]
-python = "^3.8"
-numpy = "^1.19.5"
-tqdm = "^4.57.0"
-matplotlib = "^3.3.3"
-
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "^5.2"
 Sphinx = "^3.5.1"
 sphinx-rtd-theme = "^0.5.1"

@@ -1,11 +1,13 @@
 """This is the main application."""
 
+from pathlib import Path
+
 from fdtd import Brick, Grid, Material, Resistor, SineWaveform
 from fdtd import VoltageDetector as VDetector
 from fdtd import VoltageSource as VSource
 
 print("Loading materials...")
-Material.load("materials.json")
+Material.load(Path(__file__).with_name("materials.json"))
 
 print("Creating grid...")
 grid = Grid(shape=(10, 10, 10), spacing=1e-3, courant_factor=0.9)
