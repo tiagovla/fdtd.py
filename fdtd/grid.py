@@ -443,11 +443,7 @@ class Grid:
         # X, Y = np.meshgrid(np.arange(0, self.Nx + 1),
         #                    np.arange(0, self.Ny + 1))
         # ax.plot_surface(X, Y, self.eps_r[:, :, 5, 0])
-        X, Y, Z = np.meshgrid(
-            np.arange(0, self.Nx + 1),
-            np.arange(0, self.Ny + 1),
-            np.arange(0, self.Nz + 1),
-        )
+        X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing="ij")
         ax.scatter(X, Y, Z, c=self.eps_r[:, :, :, 2])
         plt.show()
 
@@ -478,7 +474,6 @@ class Grid:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
 
-        X, Y, Z = np.meshgrid(self.x, self.y, self.z)
         mask = self.eps_r[:, :, :, 1] > 1
         x, y, z = np.nonzero(mask)
         ax.scatter(x * self.spacing[0], y * self.spacing[1], z * self.spacing[2])
@@ -498,7 +493,7 @@ class Grid:
         plt = pyplot()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
-        X, Y, Z = np.meshgrid(self.x, self.y, self.z)
+        X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing="ij")
         mask = self.eps_r[:, :, :, 2] > 1
         ax.scatter(X[mask], Y[mask], Z[mask])
 
@@ -517,7 +512,7 @@ class Grid:
         plt = pyplot()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection="3d")
-        X, Y, Z = np.meshgrid(self.x_c, self.y_c, self.z_c)
+        X, Y, Z = np.meshgrid(self.x_c, self.y_c, self.z_c, indexing="ij")
         mask = self.cell_material[:, :, :, 0] > 1
         ax.scatter(X[mask], Y[mask], Z[mask])
 
