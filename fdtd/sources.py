@@ -148,7 +148,7 @@ class ImpressedMagneticCurrentSource(Source):
         """Update field."""
         source_value = self.waveform(self.grid.current_time - self.grid.dt / 2)
         self.grid.H[self.i_s, self.j_s, self.k_s, self.direction.value] += (
-            -self.grid.c_he[self.i_s, self.j_s, self.k_s, self.direction.value]
+            self.grid.c_he[self.i_s, self.j_s, self.k_s, self.direction.value]
             * source_value
         )
 

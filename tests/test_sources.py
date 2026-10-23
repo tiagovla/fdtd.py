@@ -1,7 +1,12 @@
 import numpy as np
 import pytest
 
-from fdtd import Grid, VoltageSource
+from fdtd import (
+    Grid,
+    ImpressedElectricCurrentSource,
+    ImpressedMagneticCurrentSource,
+    VoltageSource,
+)
 from fdtd.constants import FREESPACE_PERMITTIVITY as EPS_0
 from fdtd.utils import Direction
 
@@ -41,3 +46,18 @@ def test_voltage_drive_is_sampled_at_half_step():
     )
     grid.run(3, progress=False)
     np.testing.assert_allclose(times, (np.arange(3) + 0.5) * grid.dt)
+
+
+@pytest.mark.parametrize(
+    "kind, field",
+    [(ImpressedElectricCurrentSource, "E"), (ImpressedMagneticCurrentSource, "H")],
+)
+@pytest.mark.parametrize("direction", list(Direction))
+def test_impressed_current_has_negative_field_coupling(kind, field, direction):
+    grid = Grid((4, 4, 4), 1e-3)
+    source = kind(
+        1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3, waveform=lambda t: 1, direction=direction
+    )
+    grid.add(source)
+    grid.run(1, progress=False)
+    assert getattr(grid, field)[1, 1, 1, direction.value].real < 0
