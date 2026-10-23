@@ -382,6 +382,9 @@ class VoltageSource(Source):
             self.j_s = j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
             self.k_s = k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
 
+            self._v_f = 1 / (e[0] - s[0])
+            self._r_f = (e[1] - s[1] + 1) * (e[2] - s[2] + 1) * self._v_f
+            r_s *= self._r_f
             term = (dt*dx) / (r_s*dy*dz)
             eps = self.grid.eps_r[i_s, j_s, k_s, 0] * EPS_0
             sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 0]
@@ -393,9 +396,12 @@ class VoltageSource(Source):
             self.c_v = (2*dt) / (2*eps + dt*sigma_e + term) / (r_s*dy*dz)
 
         elif self.direction == Direction.Y:
-            self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0])
-            self.j_s = j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
+            self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
+            self.j_s = j_s = slice(self.idx_s[1], self.idx_e[1])
             self.k_s = k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
+            self._v_f = 1 / (e[1] - s[1])
+            self._r_f = (e[0] - s[0] + 1) * (e[2] - s[2] + 1) * self._v_f
+            r_s *= self._r_f
             term = (dt*dy) / (r_s*dx*dz)
 
             eps = self.grid.eps_r[i_s, j_s, k_s, 1] * EPS_0
