@@ -373,11 +373,79 @@ class Diode(LumpedElement):
         x_max: float,
         y_max: float,
         z_max: float,
-        resistance: float = 50,
+        resistance: float = 0,
         name: Optional[str] = None,
         direction: Direction = Direction.Z,
+        *,
+        saturation_current: float = 1e-14,
+        temperature: float = 300,
+        ideality: float = 1,
+        polarity: int = 1,
+        tolerance: float = 1e-12,
+        max_iterations: int = 100,
     ):
         """Initialize the object."""
         super().__init__(x_min, y_min, z_min, x_max, y_max, z_max, name,
                          direction)
         self.resistance = resistance
+        self.saturation_current = saturation_current
+        self.temperature = temperature
+        self.ideality = ideality
+        self.polarity = polarity
+        self.tolerance = tolerance
+        self.max_iterations = max_iterations
+        self.previous_voltage = 0.0
+
+    def reset(self):
+        self.previous_voltage = 0.0
+
+    def attach_to_grid(self):
+        for name in ("saturation_current", "temperature", "ideality", "tolerance"):
+            value = getattr(self, name)
+            if not np.isfinite(value) or value <= 0:
+                raise ValueError(f"{name} must be finite and positive.")
+        if not np.isfinite(self.resistance) or self.resistance < 0:
+            raise ValueError("Series resistance must be finite and nonnegative.")
+        if self.polarity not in (-1, 1):
+            raise ValueError("Diode polarity must be -1 or 1.")
+        if not isinstance(self.max_iterations, int) or self.max_iterations <= 0:
+            raise ValueError("max_iterations must be a positive integer.")
+        self._set_region()
+        if self.series != 1 or self.parallel != 1:
+            raise ValueError("A diode must occupy a single field edge.")
+        self._thermal_voltage = self.ideality * 1.380649e-23 * self.temperature / 1.602176634e-19
+        self._gamma = float(self.grid.c_eh[self.index].item()) * self.edge_length / self.edge_area
+        self.previous_voltage = 0.0
+
+    def _junction_voltage(self, midpoint):
+        vt = self._thermal_voltage
+        a = (self.resistance + self._gamma / 2) * self.saturation_current / vt
+        b = midpoint / vt
+        lower, upper = min(b, 0.0), max(b, 0.0)
+        x = min(b, np.log1p(b / a)) if b > 0 else b
+        for _ in range(self.max_iterations):
+            exponent = np.exp(min(x, 700.0))
+            with np.errstate(over="ignore", invalid="ignore"):
+                residual = x + a * np.expm1(min(x, 700.0)) - b
+                derivative = 1 + a * exponent
+            if abs(residual) * vt <= self.tolerance * (1 + abs(midpoint)):
+                return x * vt
+            if residual > 0:
+                upper = x
+            else:
+                lower = x
+            candidate = x - residual / derivative if np.isfinite(residual) else np.nan
+            x = candidate if lower < candidate < upper else (lower + upper) / 2
+        raise RuntimeError("Diode junction solve did not converge.")
+
+    def update_E(self):
+        field = self.grid.E[self.index].item()
+        if not np.isfinite(field) or field.imag != 0:
+            raise ValueError("Nonlinear diodes require finite real time-domain fields.")
+        predicted = self.polarity * self.edge_length * field.real
+        midpoint = (self.previous_voltage + predicted) / 2
+        junction = self._junction_voltage(midpoint)
+        current = (midpoint - junction) / (self.resistance + self._gamma / 2)
+        voltage = predicted - self._gamma * current
+        self.grid.E[self.index] = self.polarity * voltage / self.edge_length
+        self.previous_voltage = voltage

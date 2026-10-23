@@ -6,7 +6,7 @@ from fdtd.constants import FREESPACE_PERMITTIVITY as EPS_0
 from fdtd.utils import Direction
 
 
-@pytest.mark.parametrize("element", [Capacitor, Inductor, Resistor])
+@pytest.mark.parametrize("element", [Capacitor, Inductor, Diode, Resistor])
 def test_lumped_elements_initialize_base_state(element):
     device = element(0, 0, 0, 1e-3, 1e-3, 1e-3, name="device",
                      direction=Direction.X)
@@ -52,3 +52,39 @@ def test_inductor_current_recurrence_and_reset(direction):
     assert np.all(grid.E[device.index].real < 2)
     grid.reset()
     assert device.current_density is None
+
+
+@pytest.mark.parametrize("direction", list(Direction))
+@pytest.mark.parametrize("polarity", [-1, 1])
+@pytest.mark.parametrize("drive", [-1.0, 1.0, 1000.0])
+def test_diode_satisfies_implicit_junction_equation(direction, polarity, drive):
+    grid = Grid((3, 3, 3), 1e-3)
+    end = [0, 0, 0]
+    end[direction.value] = 1e-3
+    diode = Diode(0, 0, 0, *end, direction=direction, polarity=polarity)
+    grid.add(diode)
+    grid._prepare()
+    grid.E[diode.index] = polarity * drive / 1e-3
+    diode.update_E()
+    voltage = diode.previous_voltage
+    current = diode.saturation_current * np.expm1(voltage / (2 * diode._thermal_voltage))
+    assert voltage - drive + diode._gamma * current == pytest.approx(0, abs=1e-8)
+    if drive < 0:
+        assert voltage == pytest.approx(drive)
+    else:
+        assert 0 < voltage < drive
+    grid.reset()
+    assert diode.previous_voltage == 0
+
+
+def test_diode_rejects_complex_fields_and_reports_failed_solve():
+    grid = Grid((3, 3, 3), 1e-3)
+    diode = Diode(0, 0, 0, 0, 0, 1e-3, max_iterations=1)
+    grid.add(diode)
+    grid._prepare()
+    grid.E[diode.index] = 1j
+    with pytest.raises(ValueError, match="real"):
+        diode.update_E()
+    grid.E[diode.index] = 1000
+    with pytest.raises(RuntimeError, match="converge"):
+        diode.update_E()
