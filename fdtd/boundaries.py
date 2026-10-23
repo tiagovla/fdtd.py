@@ -1,5 +1,5 @@
-"""This module implements boundaries."""
-from typing import Tuple
+"""Boundary conditions for wrapped staggered derivatives."""
+from abc import abstractmethod
 
 import numpy as np
 
@@ -7,123 +7,45 @@ from .bases import FDTDElementBase
 
 
 class Boundary(FDTDElementBase):
-    """Base class for all boundaries."""
+    @abstractmethod
+    def attach_to_grid(self):
+        """Configure derivative behavior before field updates."""
 
     def update_E(self):
-        """Update E field."""
+        """Wrapped derivatives already enforce the electric boundary."""
 
     def update_H(self):
-        """Update H field."""
-
-    def attach_to_grid(self):
-        """Attach object to grid."""
+        """Wrapped derivatives already enforce the magnetic boundary."""
 
 
 class PeriodicBoundary(Boundary):
-    """Model of a periodic boundary condition.
-
-    Parameters
-    ----------
-    x_direction : bool
-        Flag to enable the boundary condition along the x axis.
-    y_direction : bool
-        Flag to enable the boundary condition along the y axis.
-    z_direction : bool
-        Flag to enable the boundary condition along the z axis.
-    """
-
-    def __init__(
-        self,
-        x_direction: bool = False,
-        y_direction: bool = False,
-        z_direction: bool = False,
-    ):
-        """Initialize periodic boundary object."""
+    def __init__(self, x_direction=False, y_direction=False, z_direction=False):
         super().__init__()
-        self.x_dir = x_direction
-        self.y_dir = y_direction
-        self.z_dir = z_direction
-
-    def update_E(self):
-        """Update E field."""
-        if self.x_dir:
-            self.grid.E[0, :, :, :] = self.grid.E[-1, :, :, :]
-        if self.y_dir:
-            self.grid.E[:, 0, :, :] = self.grid.E[:, -1, :, :]
-        if self.z_dir:
-            self.grid.E[:, :, 0, :] = self.grid.E[:, :, -1, :]
-
-    def update_H(self):
-        """Update H field."""
-        if self.x_dir:
-            self.grid.H[-1, :, :, :] = self.grid.H[0, :, :, :]
-        if self.y_dir:
-            self.grid.H[:, -1, :, :] = self.grid.H[:, 0, :, :]
-        if self.z_dir:
-            self.grid.H[:, :, -1, :] = self.grid.H[:, :, 0, :]
-
-
-class PeriodicBlochBoundary(Boundary):
-    """Model of a periodic Bloch boundary condition.
-
-    Parameters
-    ----------
-    b_vec : Tuple[float,...]
-    Bloch wave vector.
-    x_direction : bool
-        Flag to enable the boundary condition along the x axis.
-    y_direction : bool
-        Flag to enable the boundary condition along the y axis.
-    z_direction : bool
-        Flag to enable the boundary condition along the z axis.
-    """
-
-    def __init__(
-        self,
-        b_vec: Tuple[float, ...] = (0, 0, 0),
-        x_direction: bool = False,
-        y_direction: bool = False,
-        z_direction: bool = False,
-    ):
-        """Initialize periodic Bloch boundary condition."""
-        super().__init__()
-
-        self.b_vec = b_vec
-        self.x_dir = x_direction
-        self.y_dir = y_direction
-        self.z_dir = z_direction
-
-        self.phi_x: np.ndarray
-        self.phi_y: np.ndarray
-        self.phi_z: np.ndarray
+        self.x_dir, self.y_dir, self.z_dir = x_direction, y_direction, z_direction
 
     def attach_to_grid(self):
-        """Attach object to grid."""
-        b_vec = np.array(self.b_vec)
-        self.phi_x = np.exp(-1j * b_vec[0] *
-                            (self.grid.x_max - self.grid.x_min))
-        self.phi_y = np.exp(-1j * b_vec[1] *
-                            (self.grid.y_max - self.grid.y_min))
-        self.phi_z = np.exp(-1j * b_vec[2] *
-                            (self.grid.z_max - self.grid.z_min))
+        phases = self._phase_factors()
+        for axis, enabled in enumerate((self.x_dir, self.y_dir, self.z_dir)):
+            if enabled:
+                if self.grid._periodic[axis]:
+                    raise ValueError("Only one periodic boundary may configure each axis.")
+                self.grid._periodic[axis] = True
+                self.grid._phases[axis] = phases[axis]
 
-    def update_E(self):
-        """Update E field."""
-        if self.x_dir:
-            self.grid.E[0, :, :, :] = \
-                    self.grid.E[-1, :, :, :] * self.phi_x.conj()
-        if self.y_dir:
-            self.grid.E[:, 0, :, :] = \
-                    self.grid.E[:, -1, :, :] * self.phi_y.conj()
-        if self.z_dir:
-            self.grid.E[:, :, 0, :] = \
-                    self.grid.E[:, :, -1, :] * self.phi_z.conj()
+    def _phase_factors(self):
+        return np.ones(3, dtype=complex)
 
-    def update_H(self):
-        """Update H field."""
-        if self.x_dir:
-            self.grid.H[-1, :, :, :] = self.grid.H[0, :, :, :] * self.phi_x
-        if self.y_dir:
-            self.grid.H[:, -1, :, :] = self.grid.H[:, 0, :, :] * self.phi_y
-        if self.z_dir:
-            self.grid.H[:, :, -1, :] = self.grid.H[:, :, 0, :] * self.phi_z
+
+class PeriodicBlochBoundary(PeriodicBoundary):
+    def __init__(self, b_vec=(0, 0, 0), x_direction=False,
+                 y_direction=False, z_direction=False):
+        super().__init__(x_direction, y_direction, z_direction)
+        self.b_vec = b_vec
+
+    def _phase_factors(self):
+        vector = np.asarray(self.b_vec, dtype=float)
+        if vector.shape != (3,) or not np.all(np.isfinite(vector)):
+            raise ValueError("b_vec must contain three finite wave-vector components.")
+        phases = np.exp(-1j * vector * np.asarray(self.grid.shape) * self.grid.spacing)
+        self.phi_x, self.phi_y, self.phi_z = phases
+        return phases

@@ -33,7 +33,30 @@ class BoundingBox:
             raise WrongBounding
 
 
-def curl_H(H: np.ndarray, dx: float, dy: float, dz: float) -> np.ndarray:
+def _add_periodic_curl(curl, field, spacing, periodic, phases, forward):
+    if periodic is None:
+        return curl
+    phases = (1, 1, 1) if phases is None else phases
+    for axis, component, target, sign in ((1, 2, 0, 1), (2, 1, 0, -1),
+                                         (2, 0, 1, 1), (0, 2, 1, -1),
+                                         (0, 1, 2, 1), (1, 0, 2, -1)):
+        if not periodic[axis] or field.shape[axis] == 1:
+            continue
+        first = [slice(None)] * 3
+        last = [slice(None)] * 3
+        first[axis], last[axis] = 0, -1
+        first, last = tuple(first), tuple(last)
+        if forward:
+            difference = field[first + (component,)] * phases[axis] - field[last + (component,)]
+            index = last
+        else:
+            difference = field[first + (component,)] - field[last + (component,)] / phases[axis]
+            index = first
+        curl[index + (target,)] += sign * difference / spacing[axis]
+    return curl
+
+
+def curl_H(H: np.ndarray, dx: float, dy: float, dz: float, periodic=None, phases=None) -> np.ndarray:
     """curl_H.
 
     Parameters
@@ -53,7 +76,7 @@ def curl_H(H: np.ndarray, dx: float, dy: float, dz: float) -> np.ndarray:
         Return the curl of H.
 
     """
-    curl = np.zeros_like(H)
+    curl = np.zeros_like(H, dtype=np.result_type(H.dtype, float))
     curl[:, 1:, :, 0] += (H[:, 1:, :, 2] - H[:, :-1, :, 2]) / dy
     curl[:, :, 1:, 0] -= (H[:, :, 1:, 1] - H[:, :, :-1, 1]) / dz
 
@@ -63,10 +86,10 @@ def curl_H(H: np.ndarray, dx: float, dy: float, dz: float) -> np.ndarray:
     curl[1:, :, :, 2] += (H[1:, :, :, 1] - H[:-1, :, :, 1]) / dx
     curl[:, 1:, :, 2] -= (H[:, 1:, :, 0] - H[:, :-1, :, 0]) / dy
 
-    return curl
+    return _add_periodic_curl(curl, H, (dx, dy, dz), periodic, phases, False)
 
 
-def curl_E(E: np.ndarray, dx: float, dy: float, dz: float):
+def curl_E(E: np.ndarray, dx: float, dy: float, dz: float, periodic=None, phases=None):
     """curl_E.
 
     Parameters
@@ -86,7 +109,7 @@ def curl_E(E: np.ndarray, dx: float, dy: float, dz: float):
         Return the curl of E.
 
     """
-    curl = np.zeros_like(E)
+    curl = np.zeros_like(E, dtype=np.result_type(E.dtype, float))
     curl[:, :-1, :, 0] += (E[:, 1:, :, 2] - E[:, :-1, :, 2]) / dy
     curl[:, :, :-1, 0] -= (E[:, :, 1:, 1] - E[:, :, :-1, 1]) / dz
 
@@ -96,4 +119,4 @@ def curl_E(E: np.ndarray, dx: float, dy: float, dz: float):
     curl[:-1, :, :, 2] += (E[1:, :, :, 1] - E[:-1, :, :, 1]) / dx
     curl[:, :-1, :, 2] -= (E[:, 1:, :, 0] - E[:, :-1, :, 0]) / dy
 
-    return curl
+    return _add_periodic_curl(curl, E, (dx, dy, dz), periodic, phases, True)

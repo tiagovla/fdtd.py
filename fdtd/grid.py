@@ -94,6 +94,8 @@ class Grid:
         self.current_time: float = 0
         self.n_steps: int = 0
         self._prepared = False
+        self._periodic = [False, False, False]
+        self._phases = np.ones(3, dtype=complex)
 
         # usefull auxiliary arrays:
         self.x_c: np.ndarray = self.dx * (0.5 + np.arange(0, self.Nx))
@@ -205,6 +207,8 @@ class Grid:
         for obj in self.objects:
             obj.attach_to_grid()
 
+        self._periodic = [False, False, False]
+        self._phases = np.ones(3, dtype=complex)
         for bc in self.boundaries:
             bc.attach_to_grid()
 
@@ -279,7 +283,7 @@ class Grid:
         self.current_time += self.dt / 2
         dx, dy, dz = self.spacing
         self.E *= self.c_ee
-        self.E += self.c_eh * curl_H(self.H, dx, dy, dz)
+        self.E += self.c_eh * curl_H(self.H, dx, dy, dz, self._periodic, self._phases)
 
         for src in self.sources:
             src.update_E()
@@ -289,7 +293,7 @@ class Grid:
         self.current_time += self.dt / 2
         dx, dy, dz = self.spacing
         self.H *= self.c_hh
-        self.H += self.c_he * curl_E(self.E, dx, dy, dz)
+        self.H += self.c_he * curl_E(self.E, dx, dy, dz, self._periodic, self._phases)
 
         for src in self.sources:
             src.update_H()
