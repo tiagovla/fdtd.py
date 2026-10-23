@@ -66,10 +66,12 @@ def draw(bz_path, bands, period, output, show, y_limits=None):
     from fdtd.constants import SPEED_LIGHT
 
     _, ax = plt.subplots(figsize=(6, 4))
+    colors = {"TM": "blue", "TE": "red", "3D": "blue"}
     for distance, frequencies, polarization in bands:
         ax.scatter(
             np.full(len(frequencies), distance),
             frequencies * period / SPEED_LIGHT,
+            color=colors.get(polarization, "blue"),
             s=8,
             label=polarization,
         )
