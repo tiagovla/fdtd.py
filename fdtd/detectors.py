@@ -137,6 +137,8 @@ class VoltageDetector(Detector):
             self.k_s = slice(self.idx_s[2], self.idx_e[2])
             self.c_v = -dz / ((e[0] - s[0] + 1) * (e[1] - s[1] + 1))
 
+        self.captured = np.zeros(self.grid.n_steps, dtype=self.grid.E.dtype)
+
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""
         X, Y, Z = np.meshgrid(
@@ -163,13 +165,9 @@ class VoltageDetector(Detector):
 
     def update(self):
         """Capture voltage."""
-        try:
-            self.captured[self.grid.current_time_step] = self.c_v * np.sum(
-                self.grid.E[self.i_s, self.j_s, self.k_s,
-                            self.direction.value])
-        except TypeError:
-            self.captured = np.zeros(self.grid.n_steps)
-            self.update()
+        self.captured[self.grid.current_time_step] = self.c_v * np.sum(
+            self.grid.E[self.i_s, self.j_s, self.k_s,
+                        self.direction.value])
 
 
 class HFieldDetector(Detector):
@@ -212,6 +210,8 @@ class HFieldDetector(Detector):
         self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
         self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
         self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
+        self.captured = np.zeros(self.size + (self.grid.n_steps, ),
+                                 dtype=self.grid.H.dtype)
         logger.debug(
             f"EFieldDetector attached to {self.i_s}, {self.j_s} and {self.k_s}"
         )
@@ -255,13 +255,8 @@ class HFieldDetector(Detector):
 
     def update(self):
         """Capture H Field."""
-        try:
-            self.captured[:, :, :, self.grid.current_time_step] = self.grid.H[
-                self.i_s, self.j_s, self.k_s, self.direction.value]
-        except TypeError:
-            size = self.size + (self.grid.n_steps, )
-            self.captured = np.zeros_like(self.grid.H, shape=size)
-            self.update()
+        self.captured[:, :, :, self.grid.current_time_step] = self.grid.H[
+            self.i_s, self.j_s, self.k_s, self.direction.value]
 
 
 class EFieldDetector(Detector):
@@ -304,6 +299,8 @@ class EFieldDetector(Detector):
         self.i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
         self.j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
         self.k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
+        self.captured = np.zeros(self.size + (self.grid.n_steps, ),
+                                 dtype=self.grid.E.dtype)
         logger.debug(
             f"EFieldDetector attached to {self.i_s}, {self.j_s} and {self.k_s}"
         )
@@ -346,10 +343,5 @@ class EFieldDetector(Detector):
 
     def update(self):
         """Capture E Field."""
-        try:
-            self.captured[:, :, :, self.grid.current_time_step] = self.grid.E[
-                self.i_s, self.j_s, self.k_s, self.direction.value]
-        except TypeError:
-            size = self.size + (self.grid.n_steps, )
-            self.captured = np.zeros_like(self.grid.E, shape=size)
-            self.update()
+        self.captured[:, :, :, self.grid.current_time_step] = self.grid.E[
+            self.i_s, self.j_s, self.k_s, self.direction.value]
