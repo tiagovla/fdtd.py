@@ -176,9 +176,16 @@ class _CPMLLayer:
         self.coefficients_h = self._coefficients(boundary, rho_h)
 
     def _coefficients(self, boundary, rho):
-        sigma_max = (
-            boundary.sigma_factor * (boundary.order + 1) / (150 * np.pi * self.spacing)
-        )
+        with np.errstate(over="ignore"):
+            sigma_max = (
+                boundary.sigma_factor
+                * (boundary.order + 1)
+                / (150 * np.pi * self.spacing)
+            )
+        if not np.isfinite(sigma_max):
+            raise ValueError(
+                "CPML parameters produce a non-finite conductivity profile."
+            )
         grading = rho**boundary.order
         sigma = sigma_max * grading
         kappa = 1 + (boundary.kappa_max - 1) * grading
