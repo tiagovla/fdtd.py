@@ -65,7 +65,7 @@ $\sigma^e$ has units $\mathrm{S/m}$; the magnetic loss parameter $\sigma^m$
 has units $\Omega/\mathrm{m}$. For ordinary media without equivalent magnetic
 sources or magnetic loss, $\vec{M}_i=0$ and $\sigma^m=0$. Dispersion,
 time-varying materials, and off-diagonal tensor coupling require additional
-constitutive equations. The resistor current is derived separately
+constitutive equations. The lumped-element currents are derived separately
 in Section~\ref{sec:lumped}.
 
 \subsection{Equations}%
@@ -646,6 +646,455 @@ decay time is $\epsilon_x/\sigma_{Rx}$, while
 $|c'_{ee,x}|\leq1$ for passive material and $R_{\mathrm{edge}}>0$.
 If the resistor is removed ($R_{\mathrm{edge}}\to\infty$), then
 $\sigma_{Rx}\to0$ and both coefficients return to their previous values.
+
+\subsection{Capacitor}
+\label{sec:capacitor}
+A capacitor contributes a current proportional to the time derivative of
+its voltage. As in the resistor derivation, consider one $x$-directed edge
+and suppress its spatial indices. Write $\ell=\Delta x$ and
+$A=\Delta y\,\Delta z$ for its length and dual-face area. The same equations
+apply to the other directions by permuting coordinates. A prime now means
+\emph{after adding this capacitor}.
+
+\subsubsection{From the capacitor current to Ampere's law}
+For an ideal edge capacitance $C_{\mathrm{edge}}>0$, the charge, voltage,
+and current satisfy
+\begin{equation}
+    Q=C_{\mathrm{edge}}V_{\mathrm{edge}},\qquad
+    V_{\mathrm{edge}}=\ell E_x,\qquad
+    I_{\mathrm{edge}}=\frac{dQ}{dt}
+        =C_{\mathrm{edge}}\ell\frac{\partial E_x}{\partial t}.
+\end{equation}
+Divide by the dual-face area to obtain the added current density:
+\begin{equation}
+    \boxed{J_{Cx}=\frac{C_{\mathrm{edge}}\ell}{A}
+                    \frac{\partial E_x}{\partial t}
+        =\Delta\epsilon_{Cx}\frac{\partial E_x}{\partial t},\qquad
+        \Delta\epsilon_{Cx}=\frac{C_{\mathrm{edge}}\ell}{A}.}
+    \label{eq:capacitor-current}
+\end{equation}
+Here $\Delta\epsilon_{Cx}$ has units $\mathrm{F/m}$ and is an absolute
+permittivity increment, not a relative permittivity. Substituting this
+current into Ampere's law and moving its derivative to the left gives
+\begin{equation}
+    \epsilon_x\frac{\partial E_x}{\partial t}
+        =(\nabla\times\vec H)_x-\sigma_x^e E_x-J_{Cx},
+\end{equation}
+\begin{equation}
+    \boxed{(\epsilon_x+\Delta\epsilon_{Cx})
+        \frac{\partial E_x}{\partial t}
+        +\sigma_x^e E_x=(\nabla\times\vec H)_x.}
+    \label{eq:capacitor-maxwell}
+\end{equation}
+Thus the capacitor increases electric storage. It adds no conductivity.
+
+\subsubsection{Discretize and collect the field coefficients}
+Use the same integer-time electric fields, half-integer-time magnetic
+fields, and centered conductivity term as for the resistor:
+\begin{equation}
+    (\epsilon_x+\Delta\epsilon_{Cx})
+        \frac{E_x^{n+1}-E_x^n}{\Delta t}
+    +\sigma_x^e\frac{E_x^{n+1}+E_x^n}{2}
+        =(\nabla_h\times\vec H^{n+1/2})_x.
+\end{equation}
+Multiplying by $\Delta t$ and collecting terms yields
+\begin{equation}
+    \begin{aligned}
+    (\epsilon_x+\Delta\epsilon_{Cx}+\sigma_x^e\Delta t/2)E_x^{n+1}
+       ={}&(\epsilon_x+\Delta\epsilon_{Cx}-\sigma_x^e\Delta t/2)E_x^n\\
+          &+\Delta t\,(\nabla_h\times\vec H^{n+1/2})_x.
+    \end{aligned}
+\end{equation}
+Consequently,
+\begin{equation}
+    \boxed{\begin{aligned}
+    E_x^{n+1}&=c'_{ee,x}E_x^n
+        +c'_{eh,x}(\nabla_h\times\vec H^{n+1/2})_x,\\
+    c'_{ee,x}&=\frac{\epsilon_x+\Delta\epsilon_{Cx}-\sigma_x^e\Delta t/2}
+                         {\epsilon_x+\Delta\epsilon_{Cx}+\sigma_x^e\Delta t/2},\\
+    c'_{eh,x}&=\frac{\Delta t}
+                         {\epsilon_x+\Delta\epsilon_{Cx}+\sigma_x^e\Delta t/2}.
+    \end{aligned}}
+    \label{eq:capacitor-field}
+\end{equation}
+Let $D_x=\epsilon_x+\sigma_x^e\Delta t/2$ denote the old denominator.
+Equation~\eqref{eq:resistor-old-coefficients} gives
+$c_{eh,x}/\Delta t=1/D_x$. Dividing both new numerators and their
+denominator by $D_x$ gives the transformation of the stored arrays:
+\begin{equation}
+    \boxed{\begin{aligned}
+    q_C&=\frac{\Delta\epsilon_{Cx}c_{eh,x}}{\Delta t},\\
+    c'_{ee,x}&=\frac{c_{ee,x}+q_C}{1+q_C},\qquad
+    c'_{eh,x}=\frac{c_{eh,x}}{1+q_C}.
+    \end{aligned}}
+    \label{eq:capacitor-coefficients}
+\end{equation}
+The increment appears with a plus sign in both numerator and denominator
+of $c'_{ee,x}$ because it multiplies $E_x^{n+1}-E_x^n$.
+For lossless material, $c_{ee,x}=c'_{ee,x}=1$; the capacitor then changes
+only $c_{eh,x}$. With conductivity present, both coefficients change.
+
+\subsubsection{Terminal geometry and the exact code calculation}
+The counts $N_s$ and $N_p$ are the same as in the resistor section and
+are computed by
+\sourcecode{fdtd/lumped_elements.py\#L75-L99}{LumpedElement.\_set\_region}.
+Series capacitances combine reciprocally, so a network of identical
+edge capacitors has
+\begin{equation}
+    C=\frac{N_p C_{\mathrm{edge}}}{N_s},\qquad
+    \boxed{C_{\mathrm{edge}}=C\frac{N_s}{N_p}.}
+    \label{eq:capacitor-geometry}
+\end{equation}
+This scaling is the inverse of the resistor scaling. For two edges in
+series and three parallel paths, $C_{\mathrm{edge}}=2C/3$ gives terminal
+capacitance $3(2C/3)/2=C$. The implementation in
+\sourcecode{fdtd/lumped_elements.py\#L220-L228}{Capacitor.attach\_to\_grid}
+is therefore
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily,columns=fullflexible]
+capacitance = self.capacitance * self.series / self.parallel
+self.grid._add_electric_load(
+    self.index, permittivity=capacitance * self.edge_length / self.edge_area
+)
+\end{lstlisting}
+The local \texttt{capacitance} is $C_{\mathrm{edge}}$, and the helper's
+\texttt{permittivity} argument is $\Delta\epsilon_{Cx}$.
+In the \sourcecode{fdtd/grid.py\#L490-L498}{electric-load helper},
+\texttt{conductivity=0} implies
+\begin{equation}
+    \begin{aligned}
+    \texttt{scale}&=c_{eh,x}/\Delta t,\qquad \texttt{loss}=0,\\
+    \texttt{denominator}&=1+\Delta\epsilon_{Cx}\,\texttt{scale}=1+q_C,\\
+    \texttt{c\_ee[index]}&\gets(c_{ee,x}+q_C)/(1+q_C),\\
+    \texttt{c\_eh[index]}&\gets c_{eh,x}/(1+q_C).
+    \end{aligned}
+\end{equation}
+These are exactly Eq.~\eqref{eq:capacitor-coefficients}. Existing
+resistive or capacitive loads are retained because the helper uses the
+currently stored coefficients. Like \texttt{Resistor}, \texttt{Capacitor}
+inherits the empty \texttt{LumpedElement.update\_E}; the loaded arrays in
+\texttt{Grid.update\_E} already implement its entire current contribution.
+
+As a check, with no curl or conductivity, an imposed current density
+$J_{ix}$ gives
+\begin{equation}
+    (\epsilon_x+\Delta\epsilon_{Cx})
+        \frac{E_x^{n+1}-E_x^n}{\Delta t}=-J_{ix}^{n+1/2}.
+\end{equation}
+For one edge, the total storage capacitance is
+$C_{\mathrm{edge}}+\epsilon_x A/\ell$. Thus the field retains the
+background displacement current in addition to the requested capacitor.
+The charging-rate check appears in
+\sourcecode{tests/test_physics.py\#L75-L91}{capacitor charging test}.
+
+\subsection{Inductor}
+\label{sec:inductor}
+An inductor needs a current state: its current cannot be recovered from
+the instantaneous field alone. The implemented branch consists of an
+inductance $L_{\mathrm{edge}}>0$ and a series resistance
+$R_{\mathrm{edge}}\geq0$. Keep $\ell=\Delta x$, $A=\Delta y\,\Delta z$,
+and the same voltage and current orientation as above.
+
+\subsubsection{Couple the circuit equation to Maxwell's equation}
+The series $RL$ voltage law is
+\begin{equation}
+    V_{\mathrm{edge}}=L_{\mathrm{edge}}\frac{dI_{\mathrm{edge}}}{dt}
+                         +R_{\mathrm{edge}}I_{\mathrm{edge}}.
+\end{equation}
+Using $V_{\mathrm{edge}}=\ell E_x$ and $I_{\mathrm{edge}}=A J_{Lx}$ gives
+\begin{equation}
+    \boxed{L_{\mathrm{edge}}\frac{\partial J_{Lx}}{\partial t}
+                +R_{\mathrm{edge}}J_{Lx}=\frac{\ell}{A}E_x.}
+    \label{eq:inductor-current}
+\end{equation}
+Ampere's law must include this additional branch current:
+\begin{equation}
+    \epsilon_x\frac{\partial E_x}{\partial t}+\sigma_x^e E_x
+        =(\nabla\times\vec H)_x-J_{Lx}.
+    \label{eq:inductor-maxwell}
+\end{equation}
+Here $\epsilon_x$ and $\sigma_x^e$ may include any static capacitive and
+resistive loads already incorporated into the electric coefficients.
+
+\subsubsection{Stagger the current and derive its recurrence}
+Store $J_{Lx}$ at half-integer times, alongside the magnetic field.
+At the start of the electric update, the available state is
+$J_{Lx}^{n+1/2}$. Centering Eq.~\eqref{eq:inductor-maxwell} gives
+\begin{equation}
+    \epsilon_x\frac{E_x^{n+1}-E_x^n}{\Delta t}
+       +\sigma_x^e\frac{E_x^{n+1}+E_x^n}{2}
+       =(\nabla_h\times\vec H^{n+1/2})_x-J_{Lx}^{n+1/2}.
+\end{equation}
+Collecting $E_x^{n+1}$ gives the same coefficients as
+Eq.~\eqref{eq:resistor-old-coefficients}, now with an explicit current:
+\begin{equation}
+    \boxed{E_x^{n+1}=\widetilde E_x^{n+1}-c_{eh,x}J_{Lx}^{n+1/2},\qquad
+    \widetilde E_x^{n+1}=c_{ee,x}E_x^n
+                     +c_{eh,x}(\nabla_h\times\vec H^{n+1/2})_x.}
+    \label{eq:inductor-field}
+\end{equation}
+The tilde denotes the grid prediction before this branch correction.
+Any impressed electric source is applied to that prediction before
+\texttt{Inductor.update\_E} runs.
+
+After correcting the field, advance the branch current to $n+3/2$.
+Center Eq.~\eqref{eq:inductor-current} at $(n+1)\Delta t$:
+\begin{equation}
+    L_{\mathrm{edge}}
+        \frac{J_{Lx}^{n+3/2}-J_{Lx}^{n+1/2}}{\Delta t}
+    +R_{\mathrm{edge}}
+        \frac{J_{Lx}^{n+3/2}+J_{Lx}^{n+1/2}}{2}
+        =\frac{\ell}{A}E_x^{n+1}.
+\end{equation}
+Multiplication by $\Delta t/L_{\mathrm{edge}}$ and collection of the
+new current yield
+\begin{equation}
+    (1+d_L)J_{Lx}^{n+3/2}
+       =(1-d_L)J_{Lx}^{n+1/2}
+         +\frac{\Delta t\,\ell}{L_{\mathrm{edge}}A}E_x^{n+1},
+    \qquad d_L=\frac{\Delta t R_{\mathrm{edge}}}{2L_{\mathrm{edge}}}.
+\end{equation}
+The two additional coefficients are therefore
+\begin{equation}
+    \boxed{\begin{aligned}
+    J_{Lx}^{n+3/2}&=a_L J_{Lx}^{n+1/2}+b_L E_x^{n+1},\\
+    a_L&=\frac{1-d_L}{1+d_L},\qquad
+    b_L=\frac{\Delta t\,\ell}{L_{\mathrm{edge}}A(1+d_L)}.
+    \end{aligned}}
+    \label{eq:inductor-coefficients}
+\end{equation}
+Here $a_L$ is dimensionless, and $b_LE_x$ has units
+$\mathrm{A/m^2}$. The series resistance belongs in this current
+recurrence. Adding it as an independent conductivity would instead
+create a parallel resistor and describe a different circuit.
+
+\subsubsection{Terminal scaling and coefficient calculation in code}
+Identical series $RL$ branches combine as
+\begin{equation}
+    L=\frac{N_s L_{\mathrm{edge}}}{N_p},\qquad
+    R=\frac{N_s R_{\mathrm{edge}}}{N_p},\qquad
+    \boxed{L_{\mathrm{edge}}=L\frac{N_p}{N_s},\quad
+           R_{\mathrm{edge}}=R\frac{N_p}{N_s}.}
+    \label{eq:inductor-geometry}
+\end{equation}
+Thus \texttt{resistance} is the requested terminal series resistance,
+and \texttt{inductance} is the terminal inductance before scaling.
+The calculation in
+\sourcecode{fdtd/lumped_elements.py\#L276-L292}{Inductor.attach\_to\_grid}
+matches Eqs.~\eqref{eq:inductor-geometry} and
+\eqref{eq:inductor-coefficients}:
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily,columns=fullflexible]
+scale = self.parallel / self.series
+inductance = self.inductance * scale
+resistance = self.resistance * scale
+damping = self.grid.dt * resistance / (2 * inductance)
+self._decay = (1 - damping) / (1 + damping)
+self._drive = (
+    self.grid.dt
+    * self.edge_length
+    / (inductance * self.edge_area * (1 + damping))
+)
+self.current_density = np.zeros_like(self.grid.E[self.index])
+\end{lstlisting}
+The variables \texttt{damping}, \texttt{\_decay}, and \texttt{\_drive}
+are $d_L$, $a_L$, and $b_L$. Unlike the resistor and capacitor,
+this attachment does not modify \texttt{c\_ee} or \texttt{c\_eh}.
+Instead,
+\sourcecode{fdtd/lumped_elements.py\#L294-L299}{Inductor.update\_E}
+performs both coupled updates:
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily,columns=fullflexible]
+self.grid.E[self.index] -= self.grid.c_eh[self.index] * self.current_density
+self.current_density = (
+    self._decay * self.current_density + self._drive * self.grid.E[self.index]
+)
+\end{lstlisting}
+Before the first line, \texttt{current\_density} holds
+$J_{Lx}^{n+1/2}$; after the second assignment it holds
+$J_{Lx}^{n+3/2}$. Attachment initializes this staggered current to zero.
+\sourcecode{fdtd/lumped_elements.py\#L273-L274}{Inductor.reset}
+clears the state so that a fresh preparation recreates a zero current.
+
+For $R_{\mathrm{edge}}=0$, $a_L=1$ and
+$b_L=\Delta t\,\ell/(L_{\mathrm{edge}}A)$, as the ideal voltage law
+requires. With no curl or loss, the background edge capacitance is
+$C_g=\epsilon_x A/\ell$. Eliminating the current gives
+\begin{equation}
+    E_x^{n+2}-2E_x^{n+1}+E_x^n
+       =-\frac{\Delta t^2}{L_{\mathrm{edge}}C_g}E_x^{n+1}.
+\end{equation}
+Its oscillatory regime requires
+$\Delta t<2\sqrt{L_{\mathrm{edge}}C_g}$, in addition to the propagation
+CFL restriction. If a capacitor is present, its added storage belongs
+in $C_g$. The discrete oscillation is checked by
+\sourcecode{tests/test_physics.py\#L94-L105}{inductor oscillation test};
+the current recurrence and reset are checked by
+\sourcecode{tests/test_lumped_elements.py\#L43-L56}{inductor recurrence test}.
+
+\subsection{Diode}
+\label{sec:diode}
+The implemented diode is a Shockley junction with a nonnegative series
+resistance $R_s$. Its nonlinear current requires an implicit solve at
+each electric update. It occupies exactly one field edge:
+$N_s=N_p=1$, so there is no series/parallel rescaling of its parameters.
+As above, $\ell=\Delta x$ and $A=\Delta y\,\Delta z$ for an
+$x$-directed device.
+
+\subsubsection{Junction law, orientation, and coupling to the field}
+Let $p\in\{-1,1\}$ be \texttt{polarity}. Define device voltage and
+current positive in the forward direction:
+\begin{equation}
+    v=p\ell E_x,\qquad J_{Dx}=\frac{pI_D}{A}.
+\end{equation}
+For junction voltage $v_j$, saturation current $I_s>0$, temperature
+$T>0$, and ideality factor $\eta>0$, the model is
+\begin{equation}
+    \boxed{I_D=I_s\left[\exp\left(\frac{v_j}{V_*}\right)-1\right],
+       \qquad v=v_j+R_s I_D,\qquad V_*=\frac{\eta k_B T}{q_e}.}
+    \label{eq:diode-law}
+\end{equation}
+The code stores the ideality-weighted thermal voltage $V_*$ as
+\texttt{\_thermal\_voltage}, using
+$k_B=1.380649\times10^{-23}\,\mathrm{J/K}$ and
+$q_e=1.602176634\times10^{-19}\,\mathrm{C}$.
+For $T=300\,\mathrm K$ and $\eta=1$, $V_*\simeq25.852\,\mathrm{mV}$.
+
+Ampere's law contains $-J_{Dx}$, just as it contains the inductor
+current. After the ordinary grid prediction $\widetilde E_x^{n+1}$,
+including static loads and impressed sources, its centered update is
+\begin{equation}
+    E_x^{n+1}=\widetilde E_x^{n+1}
+                   -c_{eh,x}\frac{pI_D^{n+1/2}}{A}.
+\end{equation}
+Multiplying by $p\ell$ gives
+\begin{equation}
+    \boxed{v^{n+1}=v_{\mathrm{pred}}-\gamma I_D^{n+1/2},\qquad
+       v_{\mathrm{pred}}=p\ell\widetilde E_x^{n+1},\qquad
+       \gamma=\frac{c_{eh,x}\ell}{A}.}
+    \label{eq:diode-field}
+\end{equation}
+The coupling $\gamma$ has units $\Omega$. It uses the final stored
+$c_{eh,x}$, so capacitive and resistive loads on the same edge affect
+the diode solve. In terms of their effective static parameters,
+\begin{equation}
+    \gamma=\frac{\Delta t\,\ell}
+                    {A(\epsilon_x+\sigma_x^e\Delta t/2)}.
+\end{equation}
+No constant pair of modified field coefficients can represent the
+exponential current for every voltage.
+
+\subsubsection{Develop the scalar implicit equation}
+Evaluate the circuit law at the midpoint of the old and corrected
+terminal voltages:
+\begin{equation}
+    \frac{v^n+v^{n+1}}{2}=v_j+R_s I_D^{n+1/2}.
+\end{equation}
+Substitute Eq.~\eqref{eq:diode-field} and define the midpoint prediction
+$m=(v^n+v_{\mathrm{pred}})/2$. Then
+\begin{equation}
+    m-\frac{\gamma}{2}I_D^{n+1/2}=v_j+R_s I_D^{n+1/2}.
+\end{equation}
+Substituting the Shockley current produces a single equation for $v_j$:
+\begin{equation}
+    \boxed{v_j+(R_s+\gamma/2)I_s
+                  \left[\exp\left(\frac{v_j}{V_*}\right)-1\right]=m.}
+    \label{eq:diode-implicit}
+\end{equation}
+The term $\gamma/2$ follows from the midpoint field correction; it is
+not an extra physical series resistance. Define dimensionless variables
+\begin{equation}
+    x=\frac{v_j}{V_*},\qquad
+    a=\frac{(R_s+\gamma/2)I_s}{V_*},\qquad b=\frac{m}{V_*}.
+\end{equation}
+The nonlinear residual and its derivative are
+\begin{equation}
+    \boxed{f(x)=x+a\operatorname{expm1}(x)-b=0,\qquad
+        f'(x)=1+a\exp(x)>0.}
+    \label{eq:diode-residual}
+\end{equation}
+For positive coupling, the root is unique and lies in
+$[\min(b,0),\max(b,0)]$. Indeed, for $b>0$, $f(0)=-b$ and
+$f(b)=a\operatorname{expm1}(b)>0$; for $b<0$ these endpoint signs
+reverse. The zero-drive root is $x=0$.
+
+\subsubsection{Match the solver and its coefficients to code}
+\sourcecode{fdtd/lumped_elements.py\#L337-L357}{Diode.attach\_to\_grid}
+validates the parameters and single-edge geometry, then calculates
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily,columns=fullflexible]
+self._thermal_voltage = (
+    self.ideality * 1.380649e-23 * self.temperature / 1.602176634e-19
+)
+self._gamma = (
+    float(self.grid.c_eh[self.index].item()) * self.edge_length / self.edge_area
+)
+\end{lstlisting}
+These are $V_*$ and $\gamma$. Diode attachment leaves the grid
+coefficients unchanged. In
+\sourcecode{fdtd/lumped_elements.py\#L359-L378}{Diode.\_junction\_voltage},
+the argument \texttt{midpoint} is $m$, \texttt{vt} is $V_*$, and
+\texttt{a}, \texttt{b}, \texttt{x} are the quantities in
+Eq.~\eqref{eq:diode-residual}. The core calculation is
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily,columns=fullflexible]
+a = (self.resistance + self._gamma / 2) * self.saturation_current / vt
+b = midpoint / vt
+lower, upper = min(b, 0.0), max(b, 0.0)
+x = min(b, np.log1p(b / a)) if b > 0 else b
+\end{lstlisting}
+Each iteration calculates $f(x)$ and $f'(x)$ and proposes the Newton step
+\begin{equation}
+    x_{\mathrm{new}}=x-\frac{f(x)}{f'(x)}.
+\end{equation}
+The sign of $f(x)$ first tightens the bracket. A finite Newton candidate
+strictly inside the bracket is accepted; otherwise the code bisects it.
+The implementation uses \texttt{expm1} and \texttt{log1p} to retain
+accuracy near zero and caps exponential arguments at $700$ to limit
+overflow. That cap is a numerical safeguard; Eq.~\eqref{eq:diode-law}
+states the intended junction model. In numerical voltage values, the
+stopping condition is
+\begin{equation}
+    |f(x)|V_*\leq\texttt{tolerance}\,(1+|m|).
+\end{equation}
+The default \texttt{tolerance} is $10^{-12}$ and the iteration limit is
+$100$. A failed solve raises \texttt{RuntimeError}; nonfinite or complex
+time-domain fields are rejected.
+
+Once $v_j=xV_*$ is known, Eq.~\eqref{eq:diode-implicit} also provides
+the current without evaluating another exponential:
+\begin{equation}
+    I_D^{n+1/2}=\frac{m-v_j}{R_s+\gamma/2},\qquad
+    v^{n+1}=v_{\mathrm{pred}}-\gamma I_D^{n+1/2},\qquad
+    E_x^{n+1}=\frac{p v^{n+1}}{\ell}.
+\end{equation}
+These are the assignments in
+\sourcecode{fdtd/lumped_elements.py\#L380-L394}{Diode.update\_E}:
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily,columns=fullflexible]
+predicted = self.polarity * self.edge_length * field.real
+midpoint = (self.previous_voltage + predicted) / 2
+junction = self._junction_voltage(midpoint)
+current = (midpoint - junction) / (self.resistance + self._gamma / 2)
+voltage = predicted - self._gamma * current
+self.grid.E[self.index] = self.polarity * voltage / self.edge_length
+self.previous_voltage = voltage
+\end{lstlisting}
+At entry, \texttt{previous\_voltage} represents $v^n$; the final
+assignment stores $v^{n+1}$ for the next step. Attachment and
+\texttt{reset} initialize it to zero; a nonzero initial field does not
+automatically initialize this separate voltage history.
+The method refreshes \texttt{\_gamma} from \texttt{c\_eh} before each
+solve because later attachments may have added parallel static loads.
+
+As a check, set $R_s=0$ and $v^n=0$. Then
+$v_j=v^{n+1}/2$, and the update must satisfy
+\begin{equation}
+    v^{n+1}-v_{\mathrm{pred}}
+        +\gamma I_s\operatorname{expm1}
+                      \left(\frac{v^{n+1}}{2V_*}\right)=0.
+\end{equation}
+This is the residual checked for every direction and polarity in
+\sourcecode{tests/test_lumped_elements.py\#L63-L82}{diode residual test}.
+The model includes neither junction capacitance nor reverse breakdown.
+Dynamic elements sharing an edge are applied sequentially by
+\sourcecode{fdtd/grid.py\#L390-L403}{Grid.update\_E}; the equations above
+describe each element's correction, not a simultaneous nonlinear solve
+for all overlapping dynamic branches.
 
 % \begin{figure}[h]
 % 	\centering
