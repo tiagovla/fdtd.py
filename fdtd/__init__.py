@@ -8,6 +8,7 @@ from fdtd.grid import Grid
 from fdtd.lumped_elements import Capacitor, Diode, Inductor, Resistor
 from fdtd.materials import Material
 from fdtd.objects import Brick, Sphere
+from fdtd.plane_wave import PlaneWave, ScatteredFieldSource, TFSFSource
 from fdtd.pml import CPMLBoundary
 from fdtd.sources import (
     EFieldSource,
@@ -36,10 +37,13 @@ __all__ = [
     "Material",
     "PeriodicBlochBoundary",
     "PeriodicBoundary",
+    "PlaneWave",
     "Resistor",
+    "ScatteredFieldSource",
     "SineWaveform",
     "Sphere",
     "StepWaveform",
+    "TFSFSource",
     "VoltageDetector",
     "VoltageSource",
 ]

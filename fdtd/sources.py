@@ -104,6 +104,10 @@ class Source(FDTDElementBase):
     def update_H(self):
         """Update H fields."""
 
+    def estimate_memory(self):
+        """Return additional cached source storage in bytes."""
+        return 0
+
     def __repr__(self):
         """Dev. string representation."""
         return (

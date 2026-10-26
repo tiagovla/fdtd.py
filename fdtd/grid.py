@@ -357,6 +357,7 @@ class Grid:
             + self.cell_material.nbytes
             + sum(detector.estimate_memory(n_steps) for detector in self.detectors)
             + sum(boundary.estimate_memory() for boundary in self.boundaries)
+            + sum(source.estimate_memory() for source in self.sources)
         )
 
     def step(self):
