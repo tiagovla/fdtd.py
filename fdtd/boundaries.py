@@ -1,4 +1,4 @@
-"""Boundary conditions for wrapped staggered derivatives."""
+"""Boundary conditions for staggered field updates."""
 
 from abc import abstractmethod
 
@@ -13,10 +13,19 @@ class Boundary(FDTDElementBase):
         """Configure derivative behavior before field updates."""
 
     def update_E(self):
-        """Wrapped derivatives already enforce the electric boundary."""
+        """Apply electric boundary constraints after sources and elements."""
 
     def update_H(self):
-        """Wrapped derivatives already enforce the magnetic boundary."""
+        """Apply magnetic boundary constraints after sources."""
+
+    def correct_electric_curl(self, curl):
+        """Modify the magnetic curl before the electric field update."""
+
+    def correct_magnetic_curl(self, curl):
+        """Modify the electric curl before the magnetic field update."""
+
+    def estimate_memory(self):
+        return 0
 
 
 class PeriodicBoundary(Boundary):
@@ -28,6 +37,10 @@ class PeriodicBoundary(Boundary):
         phases = self._phase_factors()
         for axis, enabled in enumerate((self.x_dir, self.y_dir, self.z_dir)):
             if enabled:
+                if any(face[0] == "xyz"[axis] for face in self.grid._cpml_faces):
+                    raise ValueError(
+                        "CPML and periodic boundaries cannot share an axis."
+                    )
                 if self.grid._periodic[axis]:
                     raise ValueError(
                         "Only one periodic boundary may configure each axis."

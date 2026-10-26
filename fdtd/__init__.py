@@ -8,6 +8,7 @@ from fdtd.grid import Grid
 from fdtd.lumped_elements import Capacitor, Diode, Inductor, Resistor
 from fdtd.materials import Material
 from fdtd.objects import Brick, Sphere
+from fdtd.pml import CPMLBoundary
 from fdtd.sources import (
     EFieldSource,
     ImpressedElectricCurrentSource,
@@ -22,6 +23,7 @@ __all__ = [
     "__version__",
     "Brick",
     "Capacitor",
+    "CPMLBoundary",
     "Diode",
     "EFieldDetector",
     "EFieldSource",

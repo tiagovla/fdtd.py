@@ -123,6 +123,7 @@ class Grid:
         self._prepared = False
         self._periodic = [False, False, False]
         self._phases = np.ones(3, dtype=complex)
+        self._cpml_faces = {}
 
         # usefull auxiliary arrays:
         self.x_c: np.ndarray = self.dx * (0.5 + np.arange(0, self.Nx))
@@ -262,6 +263,7 @@ class Grid:
 
         self._periodic = [False, False, False]
         self._phases = np.ones(3, dtype=complex)
+        self._cpml_faces = {}
         for bc in self.boundaries:
             bc.attach_to_grid()
 
@@ -354,6 +356,7 @@ class Grid:
             sum(array.nbytes for array in arrays)
             + self.cell_material.nbytes
             + sum(detector.estimate_memory(n_steps) for detector in self.detectors)
+            + sum(boundary.estimate_memory() for boundary in self.boundaries)
         )
 
     def step(self):
@@ -378,8 +381,11 @@ class Grid:
         """Update E Field."""
         self.current_time += self.dt / 2
         dx, dy, dz = self.spacing
+        curl = curl_H(self.H, dx, dy, dz, self._periodic, self._phases)
+        for boundary in self.boundaries:
+            boundary.correct_electric_curl(curl)
         self.E *= self.c_ee
-        self.E += self.c_eh * curl_H(self.H, dx, dy, dz, self._periodic, self._phases)
+        self.E += self.c_eh * curl
 
         for src in self.sources:
             src.update_E()
@@ -390,8 +396,11 @@ class Grid:
         """Update H Field."""
         self.current_time += self.dt / 2
         dx, dy, dz = self.spacing
+        curl = curl_E(self.E, dx, dy, dz, self._periodic, self._phases)
+        for boundary in self.boundaries:
+            boundary.correct_magnetic_curl(curl)
         self.H *= self.c_hh
-        self.H += self.c_he * curl_E(self.E, dx, dy, dz, self._periodic, self._phases)
+        self.H += self.c_he * curl
 
         for src in self.sources:
             src.update_H()

@@ -332,7 +332,7 @@ class Inductor(LumpedElement):
         Maximum z coordinate of the bounding box containing the inductor.
     resistance : float
         Internal resistance of the inductor.
-    capacitance : float
+    inductance : float
         Internal inductance of the inductor.
     """
 
