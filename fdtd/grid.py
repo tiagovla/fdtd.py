@@ -35,6 +35,8 @@ class Grid:
         shape: Tuple[int, int, int],
         spacing: Union[float, Tuple[float, float, float]],
         courant_factor: float = 0.9,
+        *,
+        average_materials: bool = True,
     ):
         """Initialize the grid."""
         if (
@@ -71,6 +73,9 @@ class Grid:
             self.courant_factor = courant_factor
         else:
             raise ValueError(f"courant_factor {courant_factor} must be between 0 and 1")
+        if not isinstance(average_materials, bool):
+            raise ValueError("average_materials must be a boolean.")
+        self.average_materials = average_materials
 
         self.dt = self.courant_factor / (
             SPEED_LIGHT
@@ -169,7 +174,7 @@ class Grid:
         self.sigma_e[:, :, :, :] = self.cell_material[:, :, :, 2, None]
         self.sigma_m[:, :, :, :] = self.cell_material[:, :, :, 3, None]
 
-    def _calculate_material_components(self):
+    def _calculate_material_components_averaged(self):
         """Average cells at electric edges and magnetic faces."""
         periodic = getattr(self, "_periodic", (False,) * 3)
 
@@ -267,7 +272,10 @@ class Grid:
         for bc in self.boundaries:
             bc.attach_to_grid()
 
-        self._calculate_material_components()
+        if self.average_materials:
+            self._calculate_material_components_averaged()
+        else:
+            self._calculate_material_components_simple()
 
         for obj in self.objects:
             if isinstance(obj, Brick):

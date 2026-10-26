@@ -14,7 +14,7 @@ SIDE VIEW, looking along x (the plates extend from x=4 mm to x=6 mm):
             2                  5                  8
           source             detector            load
 
-    Vs = 1 V step; Rs = 50 ohm; R = 50 ohm.
+    Vs = 1 V step at 10% of the run duration; Rs = 50 ohm; R = 50 ohm.
     The dotted probe is a measurement, not an electrical connection.
 
 WHAT IS DEFINED BELOW
@@ -57,9 +57,6 @@ from fdtd.plotting import pyplot
 MM = 1e-3
 GRID_SHAPE = (10, 10, 10)
 SPACING = 1 * MM
-PLATE_X = (4 * MM, 6 * MM)
-PLATE_Y = (2 * MM, 8 * MM)
-PLATE_Z = (4 * MM, 8 * MM)
 PLATE = Material("voltage-resistor-PEC", sigma_e=1e10, color="#0000BC")
 SOURCE_RESISTANCE = 50.0
 SOURCE_VOLTAGE = 1.0
@@ -83,54 +80,51 @@ class Comparison:
         return self.detector.captured.real - self.analytical
 
 
-def build_grid(courant_factor):
+def build_grid(courant_factor, total_steps):
     """Build the complete layout before advancing any fields."""
     grid = Grid(GRID_SHAPE, spacing=SPACING, courant_factor=courant_factor)
-    x0, x1 = PLATE_X
-    y0, y1 = PLATE_Y
-    z0, z1 = PLATE_Z
-
-    # Equal z bounds make each Brick a conducting sheet rather than a volume.
-    for z in PLATE_Z:
-        grid.add(
-            Brick(
-                *(x0, y0, z),
-                *(x1, y1, z),
-                material=PLATE,
-                name=f"Plate at z = {z / MM:g} mm",
-            )
-        )
-
-    # Equal y bounds place each connection at one end of the plates.
+    upper_plate = Brick(
+        *(4 * MM, 2 * MM, 8 * MM),
+        *(6 * MM, 8 * MM, 8 * MM),
+        material=PLATE,
+        name="Upper plate",
+    )
+    lower_plate = Brick(
+        *(4 * MM, 2 * MM, 4 * MM),
+        *(6 * MM, 8 * MM, 4 * MM),
+        material=PLATE,
+        name="Lower plate",
+    )
     source = VoltageSource(
-        *(x0, y0, z0),
-        *(x1, y0, z1),
-        waveform=StepWaveform(amplitude=SOURCE_VOLTAGE),
+        *(4 * MM, 2 * MM, 4 * MM),
+        *(6 * MM, 2 * MM, 8 * MM),
+        waveform=StepWaveform(
+            t_0=0.1 * total_steps * grid.dt,
+            amplitude=SOURCE_VOLTAGE,
+        ),
         resistance=SOURCE_RESISTANCE,
         name="Voltage source",
     )
     load = Resistor(
-        *(x0, y1, z0),
-        *(x1, y1, z1),
+        *(4 * MM, 8 * MM, 4 * MM),
+        *(6 * MM, 8 * MM, 8 * MM),
         resistance=RESISTANCE,
         name="Load resistor",
     )
 
-    # The probe spans the same gap and width, but adds no current or load.
-    y_mid = (y0 + y1) / 2
     detector = VoltageDetector(
-        *(x0, y_mid, z0),
-        *(x1, y_mid, z1),
+        *(4 * MM, 5 * MM, 4 * MM),
+        *(6 * MM, 5 * MM, 8 * MM),
         name="Midpoint plate voltage",
     )
-    for element in (source, load, detector):
-        grid.add(element)
+    for component in (upper_plate, lower_plate, source, load, detector):
+        grid.add(component)
     return grid, detector
 
 
 def simulate(steps=5000, *, courant_factor=0.9, progress=False):
     """Run the 3D model and evaluate its ideal steady-state circuit limit."""
-    grid, detector = build_grid(courant_factor)
+    grid, detector = build_grid(courant_factor, steps)
     grid.run(steps, progress=progress)
     steady = SOURCE_VOLTAGE * RESISTANCE / (SOURCE_RESISTANCE + RESISTANCE)
     analytical = np.full(detector.time.shape, steady)
