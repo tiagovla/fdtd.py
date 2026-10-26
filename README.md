@@ -1,17 +1,23 @@
 [![PyPI license](https://img.shields.io/pypi/l/fdtd.py.svg)](https://pypi.python.org/pypi/fdtd.py/)
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/fdtd.py.svg)](https://pypi.python.org/pypi/fdtd.py/)
 [![PyPI version shields.io](https://img.shields.io/pypi/v/fdtd.py.svg)](https://pypi.python.org/pypi/fdtd.py/)
-[![Tests](https://github.com/tiagovla/fdtd.py/actions/workflows/tests.yml/badge.svg)](https://github.com/tiagovla/fdtd.py/actions/workflows/tests.yml)
-[![codecov](https://codecov.io/gh/tiagovla/fdtd.py/branch/master/graph/badge.svg?token=MC1GNINTAY)](https://codecov.io/gh/tiagovla/fdtd.py)
 [![Documentation](https://github.com/tiagovla/fdtd.py/actions/workflows/docs.yml/badge.svg)](https://tiagovla.github.io/fdtd.py/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4648395.svg)](https://doi.org/10.5281/zenodo.4648395)
 
 # FDTD Framework for Electromagnetic Simulations
 
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="fdtd.py — Electromagnetics, step by step. Wavefronts scatter around a dielectric on a discrete field grid." width="100%">
+</p>
+
 ## Installation
 ```bash
 pip install fdtd.py
 ```
+
+## Supported Python versions
+
+Python 3.9 through 3.15.
 
 ## Example
 ```python
@@ -50,6 +56,8 @@ grid.plot_geometry()
 
 
 ## Documentation
+
+Read the [published documentation](https://tiagovla.github.io/fdtd.py/).
 
 Preview the MkDocs Material site locally:
 

@@ -1,0 +1,71 @@
+:root,
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #17243a;
+  --md-primary-fg-color--light: #263c5b;
+  --md-primary-fg-color--dark: #101a2b;
+  --md-accent-fg-color: #087f8c;
+  --md-typeset-a-color: #087f8c;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #111d31;
+  --md-primary-fg-color--light: #1c314c;
+  --md-primary-fg-color--dark: #0a1220;
+  --md-accent-fg-color: #55d6cf;
+  --md-typeset-a-color: #72e2dc;
+  --md-default-bg-color: #0b1220;
+  --md-default-bg-color--light: #111b2b;
+  --md-default-bg-color--lighter: #17243a;
+  --md-code-bg-color: #111b2b;
+}
+
+.md-header {
+  background: linear-gradient(110deg, #111a2c 0%, #172b43 58%, #123544 100%);
+}
+
+.md-tabs {
+  background: #14243a;
+}
+
+.md-main__inner {
+  max-width: 84rem;
+}
+
+.md-typeset h1 {
+  font-weight: 750;
+  letter-spacing: -0.035em;
+}
+
+.md-typeset h2,
+.md-typeset h3 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.md-typeset h2 {
+  margin-top: 2em;
+}
+
+.md-search__form {
+  border-radius: 0.7rem;
+}
+
+.md-typeset pre,
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 0.7rem;
+}
+
+.md-typeset .admonition,
+.md-typeset details {
+  box-shadow: 0 4px 18px rgb(10 20 35 / 8%);
+}
+
+.md-typeset code {
+  border-radius: 0.3rem;
+}
+
+[data-md-color-scheme="slate"] .md-typeset .admonition,
+[data-md-color-scheme="slate"] .md-typeset details {
+  box-shadow: 0 4px 18px rgb(0 0 0 / 18%);
+}
