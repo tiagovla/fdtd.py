@@ -1,0 +1,25 @@
+site_name: fdtd.py
+site_description: Finite-difference time-domain electromagnetic simulations
+site_url: https://tiagovla.github.io/fdtd.py/
+repo_url: https://github.com/tiagovla/fdtd.py
+
+nav:
+  - Home: index.md
+  - API reference: api.md
+
+theme:
+  name: material
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: numpy
+            members_order: source
+            show_if_no_docstring: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_source: false

@@ -34,9 +34,9 @@ examples = [
     "morpho.py>=0.1.0; python_version < '3.16'",
 ]
 docs = [
-    "Sphinx>=3.5.1",
-    "sphinx-rtd-theme>=0.5.1",
-    "sphinx-autodoc-typehints>=1.11.1",
+    "mkdocs>=1.6.1,<2",
+    "mkdocs-material>=9.7.7",
+    "mkdocstrings[python]>=0.24.0",
 ]
 
 [project.urls]

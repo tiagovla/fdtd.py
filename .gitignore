@@ -1,6 +1,6 @@
 __pycache__/
 build/
 dist/
-docs/_build
+site/
 .coverage
 .mypy_cache

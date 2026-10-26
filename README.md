@@ -3,7 +3,7 @@
 [![PyPI version shields.io](https://img.shields.io/pypi/v/fdtd.py.svg)](https://pypi.python.org/pypi/fdtd.py/)
 [![Tests](https://github.com/tiagovla/fdtd.py/actions/workflows/tests.yml/badge.svg)](https://github.com/tiagovla/fdtd.py/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/tiagovla/fdtd.py/branch/master/graph/badge.svg?token=MC1GNINTAY)](https://codecov.io/gh/tiagovla/fdtd.py)
-[![Documentation Status](https://readthedocs.org/projects/fdtd-py/badge/?version=v0.0.3)](https://fdtd-py.readthedocs.io/en/v0.0.3/?badge=v0.0.3)
+[![Documentation](https://github.com/tiagovla/fdtd.py/actions/workflows/docs.yml/badge.svg)](https://tiagovla.github.io/fdtd.py/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4648395.svg)](https://doi.org/10.5281/zenodo.4648395)
 
 # FDTD Framework for Electromagnetic Simulations
@@ -51,6 +51,20 @@ grid.plot_3d()
 
 ```
 
+
+## Documentation
+
+Preview the MkDocs Material site locally:
+
+```bash
+uv run --extra docs mkdocs serve
+```
+
+Build the documentation with validation:
+
+```bash
+uv run --extra docs mkdocs build --strict
+```
 
 ### References
 [1] A. Z. Elsherbeni and V. Demir, The finite-difference time-domain method for electromagnetics, 2nd Edition. Edison, NJ: SciTech Publishing, an imprint of the IET, 2016.
