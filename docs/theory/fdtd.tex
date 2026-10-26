@@ -10,6 +10,8 @@
 \usepackage{listings}
 \usepackage{geometry}
 \usepackage{graphicx}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue,bookmarksnumbered=true]{hyperref}
+\newcommand{\sourcecode}[2]{\href{https://github.com/tiagovla/fdtd.py/blob/7027c252cd23b6cfb8cb197e361dacfac9fd1c72/#1}{\texttt{#2}}}
 
 \geometry{
 	a4paper,
@@ -45,6 +47,27 @@
 \begin{document}
 \maketitle
 \section{Maxwell Equations}%
+\subsection{Material and source conventions}
+We assume linear, nondispersive media with time-independent, positive
+permittivity and permeability and nonnegative conductivities. The vector
+equations below use scalar parameters for isotropic media. The component
+equations also apply to diagonal constitutive tensors aligned with the grid.
+For each component $\alpha\in\{x,y,z\}$,
+\begin{equation}
+    \epsilon_\alpha=\epsilon_0\epsilon_{r,\alpha},
+    \qquad \mu_\alpha=\mu_0\mu_{r,\alpha}.
+\end{equation}
+Thus $\epsilon_\alpha$ and $\mu_\alpha$ are absolute parameters in
+$\mathrm{F/m}$ and $\mathrm{H/m}$. The impressed electric current density
+$\vec{J}_i$ has units $\mathrm{A/m^2}$, and the equivalent impressed magnetic
+current density $\vec{M}_i$ has units $\mathrm{V/m^2}$. Electric conductivity
+$\sigma^e$ has units $\mathrm{S/m}$; the magnetic loss parameter $\sigma^m$
+has units $\Omega/\mathrm{m}$. For ordinary media without equivalent magnetic
+sources or magnetic loss, $\vec{M}_i=0$ and $\sigma^m=0$. Dispersion,
+time-varying materials, and off-diagonal tensor coupling require additional
+constitutive equations. The resistor current is derived separately
+in Section~\ref{sec:lumped}.
+
 \subsection{Equations}%
 
 \begin{equation}
@@ -53,174 +76,207 @@
 \end{equation}
 
 \begin{equation}
-	\frac{\partial E_{x}}{\partial t} =
-	\frac{1}{\epsilon_{x}} \left( \left[ \nabla \times \vec{H} \right] \cdot \hat{x} - \sigma^{e}_{x} E_{x} - J_{ix} \right) =
-	\frac{1}{\epsilon_{x}} \left( \frac{\partial H_{z}}{\partial y} - \frac{\partial H_{y}}{\partial z} - \sigma^{e}_{x} E_{x} - J_{ix} \right)
+    \begin{aligned}
+        \frac{\partial E_{x}}{\partial t} &= \frac{1}{\epsilon_{x}} \left( \left[ \nabla \times \vec{H} \right] \cdot \hat{x} - \sigma^{e}_{x} E_{x} - J_{ix} \right) \\
+        & = \frac{1}{\epsilon_{x}} \left( \frac{\partial H_{z}}{\partial y} - \frac{\partial H_{y}}{\partial z} - \sigma^{e}_{x} E_{x} - J_{ix} \right)
+    \end{aligned}
 \end{equation}
 
 \begin{equation}
-	\frac{\partial E_{y}}{\partial t} =
-	\frac{1}{\epsilon_{y}} \left( \left[ \nabla \times \vec{H} \right] \cdot \hat{y} - \sigma^{e}_{y} E_{y} - J_{iy} \right) =
-	\frac{1}{\epsilon_{y}} \left( \frac{\partial H_{x}}{\partial z} - \frac{\partial H_{z}}{\partial x} - \sigma^{e}_{y} E_{y} - J_{iy} \right)
+    \begin{aligned}
+        \frac{\partial E_{y}}{\partial t} &= \frac{1}{\epsilon_{y}} \left( \left[ \nabla \times \vec{H} \right] \cdot \hat{y} - \sigma^{e}_{y} E_{y} - J_{iy} \right) \\
+        & = \frac{1}{\epsilon_{y}} \left( \frac{\partial H_{x}}{\partial z} - \frac{\partial H_{z}}{\partial x} - \sigma^{e}_{y} E_{y} - J_{iy} \right)
+    \end{aligned}
 \end{equation}
 
 \begin{equation}
-	\frac{\partial E_{y}}{\partial t} =
-	\frac{1}{\epsilon_{z}} \left( \left[ \nabla \times \vec{H} \right] \cdot \hat{z} - \sigma^{e}_{z} E_{z} - J_{iz} \right) =
-	\frac{1}{\epsilon_{z}} \left( \frac{\partial H_{y}}{\partial x} - \frac{\partial H_{x}}{\partial y} - \sigma^{e}_{z} E_{z} - J_{iz} \right)
+    \begin{aligned}
+        \frac{\partial E_{z}}{\partial t} &= \frac{1}{\epsilon_{z}} \left( \left[ \nabla \times \vec{H} \right] \cdot \hat{z} - \sigma^{e}_{z} E_{z} - J_{iz} \right) \\
+        & = \frac{1}{\epsilon_{z}} \left( \frac{\partial H_{y}}{\partial x} - \frac{\partial H_{x}}{\partial y} - \sigma^{e}_{z} E_{z} - J_{iz} \right)
+    \end{aligned}
 \end{equation}
 
 
 
 \begin{equation}
 	\frac{\partial \vec{H}}{\partial t} =
-	\frac{1}{\mu} \left( - \nabla \times \vec{E} - \sigma^{m} \vec{H} - \vec{J}_{i} \right)
+	\frac{1}{\mu} \left( - \nabla \times \vec{E} - \sigma^{m} \vec{H} - \vec{M}_{i} \right)
 \end{equation}
 
 \begin{equation}
-	\frac{\partial H_{x}}{\partial t} =
-	\frac{1}{\mu_{x}} \left( - \left[ \nabla \times \vec{E} \right] \cdot \hat{x} - \sigma^{m}_{x} H_{x} - J_{ix} \right) =
-	\frac{1}{\mu_{x}} \left( \frac{\partial E_{y}}{\partial z} - \frac{\partial E_{z}}{\partial y} - \sigma^{m}_{x} H_{x} - J_{ix} \right)
+    \begin{aligned}
+        \frac{\partial H_{x}}{\partial t} &= \frac{1}{\mu_{x}} \left( - \left[ \nabla \times \vec{E} \right] \cdot \hat{x} - \sigma^{m}_{x} H_{x} - M_{ix} \right) \\
+        & = \frac{1}{\mu_{x}} \left( \frac{\partial E_{y}}{\partial z} - \frac{\partial E_{z}}{\partial y} - \sigma^{m}_{x} H_{x} - M_{ix} \right)
+    \end{aligned}
 \end{equation}
 
 \begin{equation}
-	\frac{\partial H_{y}}{\partial t} =
-	\frac{1}{\mu_{y}} \left( - \left[ \nabla \times \vec{E} \right] \cdot \hat{y} - \sigma^{m}_{y} H_{y} - J_{iy} \right) =
-	\frac{1}{\mu_{y}} \left( \frac{\partial E_{z}}{\partial x} - \frac{\partial E_{x}}{\partial z} - \sigma^{m}_{y} H_{y} - J_{iy} \right)
+    \begin{aligned}
+        \frac{\partial H_{y}}{\partial t} &= \frac{1}{\mu_{y}} \left( - \left[ \nabla \times \vec{E} \right] \cdot \hat{y} - \sigma^{m}_{y} H_{y} - M_{iy} \right) \\
+        & = \frac{1}{\mu_{y}} \left( \frac{\partial E_{z}}{\partial x} - \frac{\partial E_{x}}{\partial z} - \sigma^{m}_{y} H_{y} - M_{iy} \right)
+    \end{aligned}
 \end{equation}
 
 \begin{equation}
-	\frac{\partial H_{y}}{\partial t} =
-	\frac{1}{\mu_{z}} \left( - \left[ \nabla \times \vec{E} \right] \cdot \hat{z} - \sigma^{m}_{z} H_{z} - J_{iz} \right) =
-	\frac{1}{\mu_{z}} \left( \frac{\partial E_{x}}{\partial y} - \frac{\partial E_{y}}{\partial x} - \sigma^{m}_{z} H_{z} - J_{iz} \right)
+    \begin{aligned}
+        \frac{\partial H_{z}}{\partial t} &= \frac{1}{\mu_{z}} \left( - \left[ \nabla \times \vec{E} \right] \cdot \hat{z} - \sigma^{m}_{z} H_{z} - M_{iz} \right) \\
+        & = \frac{1}{\mu_{z}} \left( \frac{\partial E_{x}}{\partial y} - \frac{\partial E_{y}}{\partial x} - \sigma^{m}_{z} H_{z} - M_{iz} \right)
+    \end{aligned}
 \end{equation}
 
 
 
 \subsection{Discretization}%
-Electric Field:
+\subsubsection{Yee locations and leapfrog timing}
+On a uniform Cartesian grid, the storage indices $(i,j,k)$ refer to
+component-dependent physical locations:
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{ccc}
+\toprule
+Component & Spatial location & Sample time \\
+\midrule
+$E_x$ & $((i+\frac12)\Delta x,j\Delta y,k\Delta z)$ & $n\Delta t$ \\
+$E_y$ & $(i\Delta x,(j+\frac12)\Delta y,k\Delta z)$ & $n\Delta t$ \\
+$E_z$ & $(i\Delta x,j\Delta y,(k+\frac12)\Delta z)$ & $n\Delta t$ \\
+$H_x$ & $(i\Delta x,(j+\frac12)\Delta y,(k+\frac12)\Delta z)$ & $(n+\frac12)\Delta t$ \\
+$H_y$ & $((i+\frac12)\Delta x,j\Delta y,(k+\frac12)\Delta z)$ & $(n+\frac12)\Delta t$ \\
+$H_z$ & $((i+\frac12)\Delta x,(j+\frac12)\Delta y,k\Delta z)$ & $(n+\frac12)\Delta t$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+Electric material parameters are evaluated at electric edges, and magnetic
+parameters at magnetic faces. Components sharing $(i,j,k)$ therefore need
+not share a physical location or the same effective material value.
+The operator $\nabla_h\times$ denotes the discrete curl on this staggered grid.
+
+At each step, first advance $H^{n-\frac12}$ to $H^{n+\frac12}$ using $E^n$
+and $M_i^n$, then advance $E^n$ to $E^{n+1}$ using $H^{n+\frac12}$ and
+$J_i^{n+\frac12}$. Midpoint fields in the conductivity terms are approximated
+by centered averages. The following equalities define the resulting
+discrete scheme.
+
+\subsubsection{Electric field}
 
 \begin{equation}
 	\begin{aligned}
 		\frac{E^{n+1}_{x}(i,j,k) - E_{x}^{n}(i,j,k)}{\Delta t} & =
-		\frac{\left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                   \\
+		\frac{\left[ \nabla_h \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                   \\
 		                                                       & - \frac{\sigma^{e}_{x}(i,j,k)}{\epsilon_{x}(i,j,k)} E^{n+\frac{1}{2}}_{x}(i,j,k)
-		- \frac{1}{\epsilon_{x}(i,j,k)} J^{n+1}_{ix}(i,j,k)
+		- \frac{1}{\epsilon_{x}(i,j,k)} J^{n+\frac{1}{2}}_{ix}(i,j,k)
 	\end{aligned}
 \end{equation}
 
 \begin{equation}
-	E^{n+\frac{1}{2}}_{x}(i,j,k) = \frac{E^{n+1}_{x}(i,j,k)+E^{n}_{x}(i,j,k)}{2}
+	E^{n+\frac{1}{2}}_{x}(i,j,k) \approx \frac{E^{n+1}_{x}(i,j,k)+E^{n}_{x}(i,j,k)}{2}
 \end{equation}
 
 \begin{equation}
 	\begin{aligned}
 		\frac{E^{n+1}_{x}(i,j,k) - E^{n}_{x}(i,j,k)}{\Delta t} & =
-		\frac{\left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                                     \\
+		\frac{\left[ \nabla_h \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                                     \\
 		                                                       & - \frac{\sigma^{e}_{x}(i,j,k)}{\epsilon_{x}(i,j,k)}  \frac{E^{n+1}_{x}(i,j,k)+E^{n}_{x}(i,j,k)}{2}
-		- \frac{1}{\epsilon_{x}(i,j,k)} J^{n+1}_{ix}(i,j,k)
+		- \frac{1}{\epsilon_{x}(i,j,k)} J^{n+\frac{1}{2}}_{ix}(i,j,k)
 	\end{aligned}
 \end{equation}
 
 \begin{equation}
 	\begin{aligned}
 		E^{n+1}_{x}(i,j,k) - E^{n}_{x}(i,j,k) & =
-		\frac{\Delta t \left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                                                                        \\
+		\frac{\Delta t \left[ \nabla_h \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                                                                        \\
 		                                      & - \frac{\Delta t\sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)}  E^{n+1}_{x}(i,j,k)- \frac{\Delta t\sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)}   E^{n}_{x}(i,j,k) \\
-		                                      & - \frac{\Delta t}{\epsilon_{x}(i,j,k)} J^{n+1}_{ix}(i,j,k)
+		                                      & - \frac{\Delta t}{\epsilon_{x}(i,j,k)} J^{n+\frac{1}{2}}_{ix}(i,j,k)
 	\end{aligned}
 \end{equation}
 
-\begin{equation}
-	\begin{aligned}
-		E^{n+1}_{x}(i,j,k) - E^{n}_{x}(i,j,k) & =
-		\frac{\Delta t \left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                                                                          \\
-		                                      & - \frac{\Delta t \sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)}  E^{n+1}_{x}(i,j,k)- \frac{\Delta t \sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)}   E^{n}_{x}(i,j,k) \\
-		                                      & - \frac{\Delta t}{\epsilon_{x}(i,j,k)} J^{n+1}_{ix}(i,j,k)
-	\end{aligned}
-\end{equation}
+
 
 \begin{equation}
 	\begin{aligned}
 		\left(1 + \frac{\Delta t \sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)} \right) E^{n+1}_{x}(i,j,k) & =
-		\frac{\Delta t \left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                                                                       \\
+		\frac{\Delta t \left[ \nabla_h \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x}}{\epsilon_{{x}}(i,j,k)}                                                                                       \\
 		                                                                                                 & + \left( 1 - \frac{\Delta t \sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)} \right)   E^{n}_{x}(i,j,k) \\
-		                                                                                                 & - \frac{\Delta t}{\epsilon_{x}(i,j,k)} J^{n+1}_{ix}(i,j,k)
+		                                                                                                 & - \frac{\Delta t}{\epsilon_{x}(i,j,k)} J^{n+\frac{1}{2}}_{ix}(i,j,k)
 	\end{aligned}
 \end{equation}
 
 \begin{equation}
 	\boxed{
-		f_{e} = \frac{\Delta t \sigma^{e}_{x}(i,j,k)}{2\epsilon_{x}(i,j,k)} )
+		f_{e,\alpha}(i,j,k) = \frac{\Delta t \sigma^{e}_{\alpha}(i,j,k)}{2\epsilon_{\alpha}(i,j,k)},
+        \qquad \alpha\in\{x,y,z\}.
 	}
 \end{equation}
+The spatial arguments of $f_{e,\alpha}$ are suppressed in the updates below.
 
 
 \begin{equation}
 	\boxed{
 		\begin{aligned}
-			\left[\nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) =
-			+\left[\frac{H^{n}_{z}(i,j,k)-H^{n}_{z}(i,j-1,k)}{\Delta y}
-			-\frac{H^{n}_{y}(i,j,k)-H^{n}_{y}(i,j,k-1)}{\Delta z} \right] \hat{x} \\
-			+\left[\frac{H^{n}_{x}(i,j,k)-H^{n}_{x}(i,j,k-1)}{\Delta z}
-			-\frac{H^{n}_{z}(i,j,k)-H^{n}_{z}(i-1,j,k)}{\Delta x} \right] \hat{y} \\
-			+\left[\frac{H^{n}_{y}(i,j,k)-H^{n}_{y}(i-1,j,k)}{\Delta x}
-			-\frac{H^{n}_{x}(i,j,k)-H^{n}_{x}(i,j-1,k)}{\Delta y} \right] \hat{z} \\
+			\left[\nabla_h \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) =
+			+\left[\frac{H^{n+\frac{1}{2}}_{z}(i,j,k)-H^{n+\frac{1}{2}}_{z}(i,j-1,k)}{\Delta y}
+			-\frac{H^{n+\frac{1}{2}}_{y}(i,j,k)-H^{n+\frac{1}{2}}_{y}(i,j,k-1)}{\Delta z} \right] \hat{x} \\
+			+\left[\frac{H^{n+\frac{1}{2}}_{x}(i,j,k)-H^{n+\frac{1}{2}}_{x}(i,j,k-1)}{\Delta z}
+			-\frac{H^{n+\frac{1}{2}}_{z}(i,j,k)-H^{n+\frac{1}{2}}_{z}(i-1,j,k)}{\Delta x} \right] \hat{y} \\
+			+\left[\frac{H^{n+\frac{1}{2}}_{y}(i,j,k)-H^{n+\frac{1}{2}}_{y}(i-1,j,k)}{\Delta x}
+			-\frac{H^{n+\frac{1}{2}}_{x}(i,j,k)-H^{n+\frac{1}{2}}_{x}(i,j-1,k)}{\Delta y} \right] \hat{z} \\
 		\end{aligned}
 	}
 \end{equation}
 
 \begin{equation}
+    \label{eq:yee-e-x}
 	\boxed{
 		\begin{aligned}
-			E^{n+1}_{x}(i,j,k) & = \frac{1-f_e}{1+f_e}  E^{n}_{x}(i,j,k)                                                                                 \\
-			                   & + \frac{\Delta t}{(1+f_e)\epsilon_{x}(i,j,k)} \left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x} \\
-			                   & - \frac{\Delta t}{(1+f_e)\epsilon_{x}(i,j,k)} J^{n+1}_{ix}(i,j,k)
+			E^{n+1}_{x}(i,j,k) & = \frac{1-f_{e,x}}{1+f_{e,x}}  E^{n}_{x}(i,j,k)                                                                                 \\
+			                   & + \frac{\Delta t}{(1+f_{e,x})\epsilon_{x}(i,j,k)} \left[ \nabla_h \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{x} \\
+			                   & - \frac{\Delta t}{(1+f_{e,x})\epsilon_{x}(i,j,k)} J^{n+\frac{1}{2}}_{ix}(i,j,k)
 		\end{aligned}
 	}
 \end{equation}
 
 \begin{equation}
+    \label{eq:yee-e-y}
 	\boxed{
 		\begin{aligned}
-			E^{n+1}_{y}(i,j,k) & = \frac{1-f_e}{1+f_e}  E^{n}_{y}(i,j,k)                                                                                 \\
-			                   & + \frac{\Delta t}{(1+f_e)\epsilon_{y}(i,j,k)} \left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{y} \\
-			                   & - \frac{\Delta t}{(1+f_e)\epsilon_{y}(i,j,k)} J^{n+1}_{iy}(i,j,k)
+			E^{n+1}_{y}(i,j,k) & = \frac{1-f_{e,y}}{1+f_{e,y}}  E^{n}_{y}(i,j,k)                                                                                 \\
+			                   & + \frac{\Delta t}{(1+f_{e,y})\epsilon_{y}(i,j,k)} \left[ \nabla_h \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{y} \\
+			                   & - \frac{\Delta t}{(1+f_{e,y})\epsilon_{y}(i,j,k)} J^{n+\frac{1}{2}}_{iy}(i,j,k)
 		\end{aligned}
 	}
 \end{equation}
 
 \begin{equation}
+    \label{eq:yee-e-z}
 	\boxed{
 		\begin{aligned}
-			E^{n+1}_{z}(i,j,k) & = \frac{1-f_e}{1+f_e}  E^{n}_{z}(i,j,k)                                                                                 \\
-			                   & + \frac{\Delta t}{(1+f_e)\epsilon_{z}(i,j,k)} \left[ \nabla \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{z} \\
-			                   & - \frac{\Delta t}{(1+f_e)\epsilon_{z}(i,j,k)} J^{n+1}_{iz}(i,j,k)
+			E^{n+1}_{z}(i,j,k) & = \frac{1-f_{e,z}}{1+f_{e,z}}  E^{n}_{z}(i,j,k)                                                                                 \\
+			                   & + \frac{\Delta t}{(1+f_{e,z})\epsilon_{z}(i,j,k)} \left[ \nabla_h \times \vec{H} \right]^{n+\frac{1}{2}}(i,j,k) \cdot \hat{z} \\
+			                   & - \frac{\Delta t}{(1+f_{e,z})\epsilon_{z}(i,j,k)} J^{n+\frac{1}{2}}_{iz}(i,j,k)
 		\end{aligned}
 	}
 \end{equation}
 
 
 
-Magnetic Field:
+\subsubsection{Magnetic field}
 
 \begin{equation}
 	\begin{aligned}
 		\frac{H^{n+\frac{1}{2}}_{x}(i,j,k) - H_{x}^{n-\frac{1}{2}}(i,j,k)}{\Delta t} & =
-		\frac{\left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                         \\
+		\frac{\left[ -\nabla_h\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                         \\
 		                                                                             & - \frac{\sigma^{m}_{x}(i,j,k)}{\mu_{x}(i,j,k)} H^{n}_{x}(i,j,k)
 		- \frac{1}{\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
 	\end{aligned}
 \end{equation}
 
 \begin{equation}
-	H^{n}_{x}(i,j,k) = \frac{H^{n+\frac{1}{2}}_{x}(i,j,k)+H^{n-\frac{1}{2}}_{x}(i,j,k)}{2}
+	H^{n}_{x}(i,j,k) \approx \frac{H^{n+\frac{1}{2}}_{x}(i,j,k)+H^{n-\frac{1}{2}}_{x}(i,j,k)}{2}
 \end{equation}
 
 \begin{equation}
 	\begin{aligned}
 		\frac{H^{n+\frac{1}{2}}_{x}(i,j,k) - H^{n-\frac{1}{2}}_{x}(i,j,k)}{\Delta t} & =
-		\frac{\left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                                                                             \\
+		\frac{\left[ -\nabla_h\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                                                                             \\
 		                                                                             & - \frac{\sigma^{m}_{x}(i,j,k)}{\mu_{x}(i,j,k)}  \frac{H^{n+\frac{1}{2}}_{x}(i,j,k)+H^{n-\frac{1}{2}}_{x}(i,j,k)}{2}
 		- \frac{1}{\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
 	\end{aligned}
@@ -229,25 +285,18 @@ Magnetic Field:
 \begin{equation}
 	\begin{aligned}
 		H^{n+\frac{1}{2}}_{x}(i,j,k) - H^{n-\frac{1}{2}}_{x}(i,j,k) & =
-		\frac{\Delta t \left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                                                                                                           \\
+		\frac{\Delta t \left[ -\nabla_h\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                                                                                                           \\
 		                                                            & - \frac{\Delta t\sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)}  H^{n+\frac{1}{2}}_{x}(i,j,k)- \frac{\Delta t\sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)}   H^{n-\frac{1}{2}}_{x}(i,j,k) \\
 		                                                            & - \frac{\Delta t}{\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
 	\end{aligned}
 \end{equation}
 
-\begin{equation}
-	\begin{aligned}
-		H^{n+\frac{1}{2}}_{x}(i,j,k) - H^{n-\frac{1}{2}}_{x}(i,j,k) & =
-		\frac{\Delta t \left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                                                                                                             \\
-		                                                            & - \frac{\Delta t \sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)}  H^{n+\frac{1}{2}}_{x}(i,j,k)- \frac{\Delta t \sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)}   H^{n-\frac{1}{2}}_{x}(i,j,k) \\
-		                                                            & - \frac{\Delta t}{\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
-	\end{aligned}
-\end{equation}
+
 
 \begin{equation}
 	\begin{aligned}
 		\left(1 + \frac{\Delta t \sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)} \right) H^{n+\frac{1}{2}}_{x}(i,j,k) & =
-		\frac{\Delta t \left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                                                                                    \\
+		\frac{\Delta t \left[ -\nabla_h\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x}}{\mu_{{x}}(i,j,k)}                                                                                                                    \\
 		                                                                                                      & + \left( 1 - \frac{\Delta t \sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)} \right)   H^{n-\frac{1}{2}}_{x}(i,j,k) \\
 		                                                                                                      & - \frac{\Delta t}{\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
 	\end{aligned}
@@ -255,21 +304,23 @@ Magnetic Field:
 
 \begin{equation}
 	\boxed{
-		f_{m} = \frac{\Delta t \sigma^{m}_{x}(i,j,k)}{2\mu_{x}(i,j,k)} )
+		f_{m,\alpha}(i,j,k) = \frac{\Delta t \sigma^{m}_{\alpha}(i,j,k)}{2\mu_{\alpha}(i,j,k)},
+        \qquad \alpha\in\{x,y,z\}.
 	}
 \end{equation}
+The spatial arguments of $f_{m,\alpha}$ are suppressed in the updates below.
 
 
 \begin{equation}
 	\boxed{
 		\begin{aligned}
-			\left[\nabla \times \vec{E} \right]^{n}(i,j,k) =
-			\left[\frac{H^{n}_{z}(i,j+1,k)-H^{n}_{z}(i,j,k)}{\Delta y}
-			-\frac{H^{n}_{y}(i,j,k+1)-H^{n}_{y}(i,j,k)}{\Delta z} \right] \hat{x} \\
-			+\left[\frac{H^{n}_{x}(i,j,k+1)-H^{n}_{x}(i,j,k)}{\Delta z}
-			-\frac{H^{n}_{z}(i+1,j,k)-H^{n}_{z}(i,j,k)}{\Delta x} \right] \hat{y} \\
-			+\left[\frac{H^{n}_{y}(i+1,j,k)-H^{n}_{y}(i,j,k)}{\Delta x}
-			-\frac{H^{n}_{x}(i,j+1,k)-H^{n}_{x}(i,j,k)}{\Delta y} \right] \hat{z} \\
+			\left[\nabla_h \times \vec{E} \right]^{n}(i,j,k) =
+			\left[\frac{E^{n}_{z}(i,j+1,k)-E^{n}_{z}(i,j,k)}{\Delta y}
+			-\frac{E^{n}_{y}(i,j,k+1)-E^{n}_{y}(i,j,k)}{\Delta z} \right] \hat{x} \\
+			+\left[\frac{E^{n}_{x}(i,j,k+1)-E^{n}_{x}(i,j,k)}{\Delta z}
+			-\frac{E^{n}_{z}(i+1,j,k)-E^{n}_{z}(i,j,k)}{\Delta x} \right] \hat{y} \\
+			+\left[\frac{E^{n}_{y}(i+1,j,k)-E^{n}_{y}(i,j,k)}{\Delta x}
+			-\frac{E^{n}_{x}(i,j+1,k)-E^{n}_{x}(i,j,k)}{\Delta y} \right] \hat{z} \\
 		\end{aligned}
 	}
 \end{equation}
@@ -278,9 +329,9 @@ Magnetic Field:
 \begin{equation}
 	\boxed{
 		\begin{aligned}
-			H^{n+\frac{1}{2}}_{x}(i,j,k) & = \frac{1-f_m}{1+f_m}  H^{n-\frac{1}{2}}_{x}(i,j,k)                                                    \\
-			                             & + \frac{\Delta t}{(1+f_m)\mu_{x}(i,j,k)} \left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x} \\
-			                             & - \frac{\Delta t}{(1+f_m)\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
+			H^{n+\frac{1}{2}}_{x}(i,j,k) & = \frac{1-f_{m,x}}{1+f_{m,x}}  H^{n-\frac{1}{2}}_{x}(i,j,k)                                                    \\
+			                             & + \frac{\Delta t}{(1+f_{m,x})\mu_{x}(i,j,k)} \left[ -\nabla_h\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{x} \\
+			                             & - \frac{\Delta t}{(1+f_{m,x})\mu_{x}(i,j,k)} M^{n}_{ix}(i,j,k)
 		\end{aligned}
 	}
 \end{equation}
@@ -288,9 +339,9 @@ Magnetic Field:
 \begin{equation}
 	\boxed{
 		\begin{aligned}
-			H^{n+\frac{1}{2}}_{y}(i,j,k) & = \frac{1-f_m}{1+f_m}  H^{n-\frac{1}{2}}_{y}(i,j,k)                                                    \\
-			                             & + \frac{\Delta t}{(1+f_m)\mu_{y}(i,j,k)} \left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{y} \\
-			                             & - \frac{\Delta t}{(1+f_m)\mu_{y}(i,j,k)} M^{n}_{iy}(i,j,k)
+			H^{n+\frac{1}{2}}_{y}(i,j,k) & = \frac{1-f_{m,y}}{1+f_{m,y}}  H^{n-\frac{1}{2}}_{y}(i,j,k)                                                    \\
+			                             & + \frac{\Delta t}{(1+f_{m,y})\mu_{y}(i,j,k)} \left[ -\nabla_h\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{y} \\
+			                             & - \frac{\Delta t}{(1+f_{m,y})\mu_{y}(i,j,k)} M^{n}_{iy}(i,j,k)
 		\end{aligned}
 	}
 \end{equation}
@@ -298,12 +349,303 @@ Magnetic Field:
 \begin{equation}
 	\boxed{
 		\begin{aligned}
-			H^{n+\frac{1}{2}}_{z}(i,j,k) & = \frac{1-f_m}{1+f_m}  H^{n-\frac{1}{2}}_{z}(i,j,k)                                                    \\
-			                             & + \frac{\Delta t}{(1+f_m)\mu_{z}(i,j,k)} \left[ -\nabla\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{z} \\
-			                             & - \frac{\Delta t}{(1+f_m)\mu_{z}(i,j,k)} M^{n}_{iz}(i,j,k)
+			H^{n+\frac{1}{2}}_{z}(i,j,k) & = \frac{1-f_{m,z}}{1+f_{m,z}}  H^{n-\frac{1}{2}}_{z}(i,j,k)                                                    \\
+			                             & + \frac{\Delta t}{(1+f_{m,z})\mu_{z}(i,j,k)} \left[ -\nabla_h\times \vec{E} \right]^{n}(i,j,k) \cdot \hat{z} \\
+			                             & - \frac{\Delta t}{(1+f_{m,z})\mu_{z}(i,j,k)} M^{n}_{iz}(i,j,k)
 		\end{aligned}
 	}
 \end{equation}
+
+\section{Time-step stability}
+For the standard lossless Yee scheme in a homogeneous isotropic medium,
+the Courant--Friedrichs--Lewy (CFL) condition on a uniform Cartesian grid is
+\begin{equation}
+    \Delta t\leq\frac{1}{v\sqrt{\Delta x^{-2}+\Delta y^{-2}+\Delta z^{-2}}},
+    \qquad v=\frac{1}{\sqrt{\epsilon\mu}}.
+\end{equation}
+Only active spatial directions enter the sum for a reduced-dimensional
+simulation. For spatially varying positive isotropic parameters, a
+conservative bound uses $v_{\mathrm{bound}}=1/\sqrt{\epsilon_{\min}\mu_{\min}}$,
+with independent minima of the discretized absolute material parameters.
+In practice choose a safety factor $0<S<1$ and multiply the CFL limit by $S$.
+For a cubic three-dimensional vacuum grid with spacing $\Delta$,
+\begin{equation}
+    \Delta t=S\frac{\Delta}{c_0\sqrt{3}}.
+\end{equation}
+For passive conductivity, $f\geq0$ gives
+$\lvert(1-f)/(1+f)\rvert\leq1$, so the centered loss term is nonamplifying.
+This does not remove the propagation CFL restriction. More general material,
+boundary, and additional dynamical models require their own stability analysis.
+
+\section{Lumped elements}
+\label{sec:lumped}
+\subsection{Resistor}
+A resistor contributes an electric current to Ampere's law. We first derive
+that current for one $x$-directed Yee edge, discretize the resulting Maxwell
+equation, and then recover the exact coefficient changes made by the code.
+The same derivation applies to $y$- and $z$-directed resistors by permuting
+coordinate labels.
+
+We keep the notation of Eq.~\eqref{eq:yee-e-x}: $E_x$ is the electric
+field, $\epsilon_x$ is the absolute permittivity, and $\sigma_x^e$ is the
+material conductivity at that edge. Only the spatial indices $(i,j,k)$ are
+suppressed. A prime on a coefficient means \emph{after adding this resistor};
+it does not denote a time derivative. No other impressed source is needed
+for this derivation.
+
+\subsubsection{From the resistor current to Ampere's law}
+Consider a single field edge of length $\Delta x$. Let $R_{\mathrm{edge}}>0$
+be the resistance assigned to that edge. The voltage drop along $+x$ is the
+line integral of the electric field. With the Yee edge value representing
+the field along that edge,
+\begin{equation}
+    V_{\mathrm{edge}}=\Delta x\,E_x.
+\end{equation}
+Ohm's law then gives the current along $+x$:
+\begin{equation}
+    I_{\mathrm{edge}}=\frac{V_{\mathrm{edge}}}{R_{\mathrm{edge}}}
+        =\frac{\Delta x}{R_{\mathrm{edge}}}E_x.
+\end{equation}
+Ampere's law uses current \emph{density}, not current. This current crosses
+the dual face of area $\Delta y\,\Delta z$ associated with the edge, so
+\begin{equation}
+    \boxed{J_{Rx}=\frac{I_{\mathrm{edge}}}{\Delta y\,\Delta z}
+        =\frac{\Delta x}{R_{\mathrm{edge}}\Delta y\,\Delta z}E_x
+        =\sigma_{Rx}E_x,\qquad
+    \sigma_{Rx}=\frac{\Delta x}{R_{\mathrm{edge}}\Delta y\,\Delta z}.}
+    \label{eq:resistor-current}
+\end{equation}
+The quantity $\sigma_{Rx}$ has units $\mathrm{S/m}$. It is the resistor's
+\emph{additional} conductivity at this edge, distinct from the background
+material conductivity $\sigma_x^e$.
+
+The $x$ component of Ampere's law, including this resistor current, is
+\begin{equation}
+    \epsilon_x\frac{\partial E_x}{\partial t}
+        =(\nabla\times\vec H)_x-\sigma_x^e E_x-J_{Rx}.
+\end{equation}
+Substituting Eq.~\eqref{eq:resistor-current} gives
+\begin{equation}
+    \boxed{\epsilon_x\frac{\partial E_x}{\partial t}
+        +(\sigma_x^e+\sigma_{Rx})E_x=(\nabla\times\vec H)_x.}
+    \label{eq:resistor-maxwell}
+\end{equation}
+Thus the resistor enters Maxwell's equation as an additional conduction
+current. The permittivity stays the same; the conductivity in the electric
+update becomes $\sigma_x^e+\sigma_{Rx}$. No additional term is required in
+Faraday's law.
+
+\subsubsection{Discretize the loaded Maxwell equation}
+As in the earlier Yee derivation, $E_x$ is stored at integer times and
+$\vec H$ at half-integer times. Evaluate Eq.~\eqref{eq:resistor-maxwell}
+at $(n+\tfrac12)\Delta t$. Approximate the time derivative by a difference
+and the conduction field by the average of its two adjacent samples:
+\begin{equation}
+    \epsilon_x\frac{E_x^{n+1}-E_x^n}{\Delta t}
+    +(\sigma_x^e+\sigma_{Rx})\frac{E_x^{n+1}+E_x^n}{2}
+    =(\nabla_h\times\vec H^{n+1/2})_x.
+    \label{eq:resistor-discrete}
+\end{equation}
+The resistor current uses this same average, because
+$J_{Rx}^{n+1/2}=\sigma_{Rx}(E_x^{n+1}+E_x^n)/2$.
+Multiplying by $\Delta t$ and collecting all $E_x^{n+1}$ terms on the left
+gives
+\begin{equation}
+    \begin{aligned}
+    \left[\epsilon_x+(\sigma_x^e+\sigma_{Rx})\frac{\Delta t}{2}\right]
+        E_x^{n+1}
+    ={}&\left[\epsilon_x-(\sigma_x^e+\sigma_{Rx})\frac{\Delta t}{2}\right]
+        E_x^n\\
+    &+\Delta t\,(\nabla_h\times\vec H^{n+1/2})_x.
+    \end{aligned}
+\end{equation}
+Dividing by the factor on the left produces the field update:
+\begin{equation}
+    \boxed{\begin{aligned}
+    E_x^{n+1}&=c'_{ee,x}E_x^n
+        +c'_{eh,x}(\nabla_h\times\vec H^{n+1/2})_x,\\[2pt]
+    c'_{ee,x}&=
+        \frac{\epsilon_x-(\sigma_x^e+\sigma_{Rx})\Delta t/2}
+             {\epsilon_x+(\sigma_x^e+\sigma_{Rx})\Delta t/2},\\[2pt]
+    c'_{eh,x}&=
+        \frac{\Delta t}{\epsilon_x+(\sigma_x^e+\sigma_{Rx})\Delta t/2}.
+    \end{aligned}}
+    \label{eq:resistor-field}
+\end{equation}
+These are the same two coefficient roles as in Eq.~\eqref{eq:yee-e-x}.
+The resistor changes \emph{both} coefficients because its centered current
+contains $E_x^{n+1}$ as well as $E_x^n$. Moving its $E_x^{n+1}$ contribution
+to the left changes the denominator of the entire update, including the
+curl term. Subtracting a current computed only from $E_x^n$ would give a
+different time discretization.
+
+\subsubsection{Express the new coefficients using the stored coefficients}
+The grid already stores the coefficients before this resistor is attached:
+\begin{equation}
+    c_{ee,x}=\frac{\epsilon_x-\sigma_x^e\Delta t/2}
+                       {\epsilon_x+\sigma_x^e\Delta t/2},\qquad
+    c_{eh,x}=\frac{\Delta t}{\epsilon_x+\sigma_x^e\Delta t/2}.
+    \label{eq:resistor-old-coefficients}
+\end{equation}
+They are the $x$ entries of \texttt{c\_ee} and \texttt{c\_eh}.
+The helper updates those arrays directly. To see why, divide the numerator
+and denominator of $c'_{eh,x}$ in Eq.~\eqref{eq:resistor-field} by the old
+denominator $\epsilon_x+\sigma_x^e\Delta t/2$:
+\begin{equation}
+    \begin{aligned}
+    c'_{eh,x}
+    &=\frac{\displaystyle
+            \frac{\Delta t}{\epsilon_x+\sigma_x^e\Delta t/2}}
+           {\displaystyle 1+
+            \frac{\sigma_{Rx}\Delta t/2}{\epsilon_x+\sigma_x^e\Delta t/2}}\\[3pt]
+    &=\frac{c_{eh,x}}{1+\sigma_{Rx}c_{eh,x}/2}.
+    \end{aligned}
+\end{equation}
+Do the same for $c'_{ee,x}$. Its numerator is the old numerator
+$\epsilon_x-\sigma_x^e\Delta t/2$ minus $\sigma_{Rx}\Delta t/2$:
+\begin{equation}
+    \begin{aligned}
+    c'_{ee,x}
+    &=\frac{\displaystyle
+            \frac{\epsilon_x-\sigma_x^e\Delta t/2}
+                 {\epsilon_x+\sigma_x^e\Delta t/2}
+            -\frac{\sigma_{Rx}\Delta t/2}
+                  {\epsilon_x+\sigma_x^e\Delta t/2}}
+           {\displaystyle 1+
+            \frac{\sigma_{Rx}\Delta t/2}{\epsilon_x+\sigma_x^e\Delta t/2}}\\[3pt]
+    &=\frac{c_{ee,x}-\sigma_{Rx}c_{eh,x}/2}
+            {1+\sigma_{Rx}c_{eh,x}/2}.
+    \end{aligned}
+\end{equation}
+Therefore the resistor can be added without recomputing coefficients from
+the material arrays:
+\begin{equation}
+    \boxed{c'_{ee,x}=
+        \frac{c_{ee,x}-\sigma_{Rx}c_{eh,x}/2}
+             {1+\sigma_{Rx}c_{eh,x}/2},\qquad
+        c'_{eh,x}=\frac{c_{eh,x}}{1+\sigma_{Rx}c_{eh,x}/2}.}
+    \label{eq:resistor-coefficient-transform}
+\end{equation}
+This is an algebraic rearrangement of Eq.~\eqref{eq:resistor-field}, with
+no extra approximation. After attachment, $c'_{ee,x}$ and $c'_{eh,x}$ become
+the stored coefficients for the next call. Applying the same transformation
+again adds the next resistor's conductivity while retaining the first.
+Two resistors on the same edge therefore give the total conductivity
+$\sigma_x^e+\sigma_{R_1x}+\sigma_{R_2x}$, as parallel branches require.
+Only the coefficient arrays change; the material arrays are not overwritten.
+
+\subsubsection{Convert the requested terminal resistance to an edge resistance}
+For one selected edge, $R_{\mathrm{edge}}=R$, the resistance requested by
+the user. A larger resistor region selects several edges. Along $x$, the
+code selects $N_s$ edges in series and $N_p$ transverse paths in parallel.
+If every edge has resistance $R_{\mathrm{edge}}$, the equivalent network
+resistance is
+\begin{equation}
+    R=\frac{N_s R_{\mathrm{edge}}}{N_p},\qquad
+    \boxed{R_{\mathrm{edge}}=R\frac{N_p}{N_s}.}
+    \label{eq:resistor-geometry}
+\end{equation}
+For snapped integer start and end indices, these counts are
+\begin{equation}
+    N_s=i_e-i_s,\qquad
+    N_p=(j_e-j_s+1)(k_e-k_s+1).
+\end{equation}
+The axial endpoint is excluded from the selected edge indices; the
+transverse endpoints are included. Each selected edge still uses its
+own dual-face area $\Delta y\,\Delta z$, rather than the entire bounding-box
+area. For example, two edges in series and three parallel paths require
+$R_{\mathrm{edge}}=3R/2$, since $2(3R/2)/3=R$.
+This scaling defines the discrete resistor network; fields in a full
+three-dimensional simulation need not be uniform over its paths.
+
+The relevant lines of
+\sourcecode{fdtd/lumped_elements.py\#L163-L171}{Resistor.attach\_to\_grid}
+now follow directly from Eqs.~\eqref{eq:resistor-geometry} and
+\eqref{eq:resistor-current}:
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily,columns=fullflexible]
+resistance = self.resistance * self.parallel / self.series
+self.grid._add_electric_load(
+    self.index, conductivity=self.edge_length / (resistance * self.edge_area)
+)
+\end{lstlisting}
+Here \texttt{self.resistance} is $R$, the local variable \texttt{resistance}
+is $R_{\mathrm{edge}}$, \texttt{edge\_length} is $\Delta x$, and
+\texttt{edge\_area} is $\Delta y\,\Delta z$. Thus the helper receives
+\texttt{conductivity} $=\sigma_{Rx}$ at exactly the selected $E_x$ entries.
+
+\subsubsection{Match \texttt{\_add\_electric\_load} line by line}
+The implementation of
+\sourcecode{fdtd/grid.py\#L490-L498}{Grid.\_add\_electric\_load} is
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily,columns=fullflexible]
+def _add_electric_load(self, index, *, permittivity=0, conductivity=0):
+    scale = self.c_eh[index] / self.dt
+    loss = conductivity * self.dt / 2
+    denominator = 1 + (permittivity + loss) * scale
+    self.c_ee[index] = (
+        self.c_ee[index] + (permittivity - loss) * scale
+    ) / denominator
+    self.c_eh[index] /= denominator
+\end{lstlisting}
+For the resistor call, \texttt{permittivity} $=0$ and
+\texttt{conductivity} $=\sigma_{Rx}$. Therefore
+\begin{equation}
+    \begin{aligned}
+    \texttt{scale}&=\frac{c_{eh,x}}{\Delta t},\\
+    \texttt{loss}&=\frac{\sigma_{Rx}\Delta t}{2},\\
+    \texttt{loss}\,\texttt{scale}
+        &=\frac{\sigma_{Rx}\Delta t}{2}\frac{c_{eh,x}}{\Delta t}
+          =\frac{\sigma_{Rx}c_{eh,x}}{2},\\
+    \texttt{denominator}&=1+\frac{\sigma_{Rx}c_{eh,x}}{2}.
+    \end{aligned}
+\end{equation}
+Substituting these expressions into the final two assignments gives
+\begin{equation}
+    \begin{aligned}
+    \texttt{c\_ee[index]}
+       &\gets\frac{c_{ee,x}-\sigma_{Rx}c_{eh,x}/2}
+                     {1+\sigma_{Rx}c_{eh,x}/2}=c'_{ee,x},\\[2pt]
+    \texttt{c\_eh[index]}
+       &\gets\frac{c_{eh,x}}{1+\sigma_{Rx}c_{eh,x}/2}=c'_{eh,x}.
+    \end{aligned}
+\end{equation}
+These are exactly Eq.~\eqref{eq:resistor-coefficient-transform}.
+The helper accepts a permittivity increment for other loads, but a resistor
+adds only conductivity. The resistor derivation therefore uses its
+\texttt{permittivity=0} case throughout.
+
+\subsubsection{Where the resistor actually updates the field}
+After attachment, \sourcecode{fdtd/grid.py\#L390-L403}{Grid.update\_E}
+uses the already modified arrays:
+\begin{lstlisting}[language=Python,basicstyle=\small\ttfamily,columns=fullflexible]
+self.E *= self.c_ee
+self.E += self.c_eh * curl
+\end{lstlisting}
+At a loaded $x$ edge these two lines mean
+\begin{equation}
+    E_x^{n+1}=c'_{ee,x}E_x^n
+        +c'_{eh,x}(\nabla_h\times\vec H^{n+1/2})_x,
+\end{equation}
+which is precisely the Maxwell update in Eq.~\eqref{eq:resistor-field}.
+\texttt{Resistor} does not implement a separate field correction:
+it inherits the empty
+\sourcecode{fdtd/lumped_elements.py\#L72-L73}{LumpedElement.update\_E}.
+Its current is already included in the two coefficients, so applying it
+again would count the same resistor twice.
+
+As a check, remove the magnetic curl and set the background conductivity
+to zero. The update reduces to
+\begin{equation}
+    \frac{E_x^{n+1}-E_x^n}{\Delta t}
+       =-\frac{\sigma_{Rx}}{\epsilon_x}
+          \frac{E_x^{n+1}+E_x^n}{2}.
+\end{equation}
+This is the centered discretization of
+$\partial E_x/\partial t=-(\sigma_{Rx}/\epsilon_x)E_x$:
+the resistor drains the electric energy stored at the edge. The continuous
+decay time is $\epsilon_x/\sigma_{Rx}$, while
+$|c'_{ee,x}|\leq1$ for passive material and $R_{\mathrm{edge}}>0$.
+If the resistor is removed ($R_{\mathrm{edge}}\to\infty$), then
+$\sigma_{Rx}\to0$ and both coefficients return to their previous values.
 
 % \begin{figure}[h]
 % 	\centering
