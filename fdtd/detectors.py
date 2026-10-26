@@ -238,30 +238,39 @@ class Detector(FDTDElementBase):
 
         The constructor's ``plot`` flag controls automatic plotting after a run;
         explicit calls work regardless of that flag. ``show=False`` permits
-        overlays and saving figures without opening a window.
+        overlays without opening a window. Standalone plots use engineering
+        time labels; artist coordinates remain in seconds. Spatial traces are
+        labeled by their grid indices.
         """
         if self.captured is None:
             raise RuntimeError("No detector samples are available.")
         transforms = {
-            "real": np.real,
-            "imag": np.imag,
-            "magnitude": np.abs,
-            "phase": np.angle,
+            "real": (np.real, ""),
+            "imag": (np.imag, " imaginary part"),
+            "magnitude": (np.abs, " magnitude"),
+            "phase": (np.angle, " phase"),
         }
         if component not in transforms:
             raise ValueError("component must be real, imag, magnitude, or phase")
         count = self.sample_count
         if not count:
             return
-        values = transforms[component](self.captured[..., :count])
+        transform, suffix = transforms[component]
+        values = transform(self.captured[..., :count])
         plt = pyplot()
-        if ax is None:
-            _, ax = plt.subplots()
-        ax.plot(
+        standalone = ax is None
+        if standalone:
+            _, ax = plt.subplots(figsize=(9, 4.5), constrained_layout=True)
+        lines = ax.plot(
             self.time[:count],
             values.reshape(-1, count).T,
-            label=label or self.name,
+            linewidth=1.7,
         )
+        for index, line in zip(np.ndindex(values.shape[:-1]), lines):
+            point = tuple(start + offset for start, offset in zip(self.idx_s, index))
+            line.set_label(
+                (label or self.name) + (f" {point}" if len(lines) > 1 else "")
+            )
         ax.set_xlabel("Time [s]")
         quantity = (
             "Voltage"
@@ -269,11 +278,24 @@ class Detector(FDTDElementBase):
             else self._field_name + self.direction.name.lower()
         )
         unit = "V" if self._voltage else ("V/m" if self._field_name == "E" else "A/m")
-        ax.set_ylabel(
-            f"{quantity} phase [rad]"
-            if component == "phase"
-            else f"{quantity} [{unit}]"
-        )
+        ax.set_ylabel(f"{quantity}{suffix} [{'rad' if component == 'phase' else unit}]")
+        if standalone:
+            from matplotlib.ticker import EngFormatter
+
+            title = self.name + (
+                f" · {len(lines)} spatial traces" if len(lines) > 1 else ""
+            )
+            ax.set_title(title, loc="left", fontsize=14, fontweight="bold", pad=12)
+            ax.set_xlabel("Time")
+            ax.xaxis.set_major_formatter(EngFormatter(unit="s"))
+            ax.margins(x=0.01)
+            ax.set_axisbelow(True)
+            ax.grid(alpha=0.2, linewidth=0.7)
+            ax.tick_params(labelsize=10)
+            for side in ("top", "right"):
+                ax.spines[side].set_visible(False)
+            if len(lines) <= 6 and (len(lines) > 1 or label):
+                ax.legend(frameon=False, fontsize=9, loc="best")
         if show:
             plt.show()
         return ax
