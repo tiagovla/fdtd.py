@@ -17,7 +17,7 @@ from .constants import SPEED_LIGHT
 from .detectors import Detector
 from .lumped_elements import LumpedElement
 from .objects import Brick, Object
-from .plotting import pyplot
+from .plotting import plot_geometry, pyplot
 from .sources import Source
 from .utils import curl_E, curl_H, validate_node_bounds
 
@@ -336,7 +336,8 @@ class Grid:
 
     def _results(self):
         for det in self.detectors:
-            det.plot()
+            if det._plot:
+                det.plot()
 
     def estimate_memory(self, n_steps):
         arrays = (
@@ -478,100 +479,25 @@ class Grid:
         logger.debug(f"c_hh {self.c_hh[0, 0, 0, 0]} {self.c_hh.shape}")
         logger.debug(f"c_he {self.c_he[0, 0, 0, 0]} {self.c_he.shape}")
 
-    def plot_disc2(self):
-        """Plot material."""
-        plt = pyplot()
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection="3d")
+    def _add_electric_load(self, index, *, permittivity=0, conductivity=0):
+        """Add parallel lumped loading without replacing existing edge loads."""
+        scale = self.c_eh[index] / self.dt
+        loss = conductivity * self.dt / 2
+        denominator = 1 + (permittivity + loss) * scale
+        self.c_ee[index] = (
+            self.c_ee[index] + (permittivity - loss) * scale
+        ) / denominator
+        self.c_eh[index] /= denominator
 
-        mask = self.eps_r[:, :, :, 1] > 1
-        x, y, z = np.nonzero(mask)
-        ax.scatter(x * self.spacing[0], y * self.spacing[1], z * self.spacing[2])
+    def plot_geometry(self, z_view: bool = False, *, ax=None, show=True):
+        """Plot objects, sources, loads, and probes; return the 3D axis.
 
-        ax.grid(True)
-        ax.set_xlim([0, self.Nx * self.spacing[0]])
-        ax.set_ylim([0, self.Ny * self.spacing[1]])
-        ax.set_zlim([0, self.Nz * self.spacing[2]])
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
-        ax.view_init(elev=25, azim=-135)
-        plt.show()
+        The plot uses material colors, a legend, and readable display units.
+        Artist coordinates remain in meters. It does not prepare or advance
+        the solver. Use show=False and an optional ax to compose figures.
+        """
+        return plot_geometry(self, z_view=z_view, ax=ax, show=show)
 
-    def plot_disc3(self):
-        """Plot material."""
-        plt = pyplot()
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection="3d")
-        X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing="ij")
-        mask = self.eps_r[:, :, :, 2] > 1
-        ax.scatter(X[mask], Y[mask], Z[mask])
-
-        ax.grid(True)
-        ax.set_xlim([0, self.Nx * self.spacing[0]])
-        ax.set_ylim([0, self.Ny * self.spacing[1]])
-        ax.set_zlim([0, self.Nz * self.spacing[2]])
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
-        ax.view_init(elev=25, azim=-135)
-        plt.show()
-
-    def plot_disc(self) -> None:
-        """Plot material."""
-        plt = pyplot()
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection="3d")
-        X, Y, Z = np.meshgrid(self.x_c, self.y_c, self.z_c, indexing="ij")
-        mask = self.cell_material[:, :, :, 0] > 1
-        ax.scatter(X[mask], Y[mask], Z[mask])
-
-        ax.grid(True)
-        ax.set_xlim([0, self.Nx * self.spacing[0]])
-        ax.set_ylim([0, self.Ny * self.spacing[1]])
-        ax.set_zlim([0, self.Nz * self.spacing[2]])
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
-        ax.view_init(elev=25, azim=-135)
-        plt.show()
-
-    def plot_3d(self, z_view: bool = False):
-        """Plot grid."""
-        plt = pyplot()
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection="3d")
-
-        for obj in self.objects:
-            obj.plot_3d(ax)
-
-        for src in self.sources:
-            src.plot_3d(ax)
-
-        for elm in self.lumped_elements:
-            elm.plot_3d(ax)
-
-        for det in self.detectors:
-            det.plot_3d(ax)
-
-        X, Y, Z = np.meshgrid(self.x, self.y, self.z, indexing="ij")
-        mask = self.sigma_e[:, :, :, 0] > 0.1
-        ax.scatter(X[mask] + self.dx / 2, Y[mask], Z[mask], c="blue")
-
-        mask = self.sigma_e[:, :, :, 1] > 0.1
-        ax.scatter(X[mask], Y[mask] + self.dy / 2, Z[mask], c="red")
-
-        ax.grid(True)
-        ax.set_xticks(self.x)
-        ax.set_yticks(self.y)
-        ax.set_zticks(self.z)
-        ax.set_xlim([0, self.Nx * self.dx])
-        ax.set_ylim([0, self.Ny * self.dy])
-        ax.set_zlim([0, self.Nz * self.dz])
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
-        ax.view_init(elev=25, azim=-135)
-        if z_view:
-            ax.view_init(elev=90, azim=-90)
-        plt.show()
+    def plot_3d(self, z_view: bool = False, *, ax=None, show=True):
+        """Compatibility spelling for plot_geometry()."""
+        return self.plot_geometry(z_view=z_view, ax=ax, show=show)

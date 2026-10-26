@@ -25,14 +25,17 @@ class Waveform(ABC):
         """Call a waveform function."""
         return self.func()(time)
 
-    def plot(self, time: np.ndarray):
-        """Plot waveform for a given time array."""
+    def plot(self, time: np.ndarray, *, ax=None, show=True, label=None):
+        """Plot a waveform on an optional axis and return that axis."""
         plt = pyplot()
         y = self.func()(time)
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.plot(time, y)
-        plt.show()
+        if ax is None:
+            _, ax = plt.subplots()
+        ax.plot(time, y, label=label)
+        ax.set_xlabel("Time [s]")
+        if show:
+            plt.show()
+        return ax
 
 
 class GaussianWaveform(Waveform):

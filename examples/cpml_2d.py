@@ -1,5 +1,4 @@
 import argparse
-from pathlib import Path
 
 import numpy as np
 
@@ -117,7 +116,6 @@ def main():
     parser.add_argument("--steps", type=int, default=400)
     parser.add_argument("--pml", type=int, default=12)
     parser.add_argument("--no-plot", action="store_true")
-    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if args.pml < 1:
         parser.error("--pml must be positive")
@@ -127,12 +125,9 @@ def main():
         parser.error("--steps must be positive")
 
     result = simulate(args.cells, args.steps, args.pml, progress=not args.no_plot)
-    if not args.no_plot or args.output:
+    if not args.no_plot:
         fig = plot_results(*result, args.pml)
-        if args.output:
-            fig.savefig(args.output, dpi=160)
-        if not args.no_plot:
-            pyplot().show()
+        pyplot().show()
         pyplot().close(fig)
     print(f"Completed {result[0].current_time_step} steps")
 

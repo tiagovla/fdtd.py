@@ -10,7 +10,6 @@ from typing import Callable, Optional, Tuple, Union
 import numpy as np
 
 from .bases import FDTDElementBase
-from .constants import FREESPACE_PERMITTIVITY as EPS_0
 from .utils import BoundingBox, Direction
 from .waveforms import Waveform
 
@@ -360,99 +359,39 @@ class VoltageSource(Source):
 
     def update_E(self):
         """Update field."""
-        Vs = self._v_f * self.waveform(self.grid.current_time - self.grid.dt / 2)
-
-        if self.c_v is not None:
-            if self.direction == Direction.X:
-                self.grid.E[self.i_s, self.j_s, self.k_s, 0] += self.c_v * Vs
-            elif self.direction == Direction.Y:
-                self.grid.E[self.i_s, self.j_s, self.k_s, 1] += self.c_v * Vs
-            elif self.direction == Direction.Z:
-                self.grid.E[self.i_s, self.j_s, self.k_s, 2] += self.c_v * Vs
+        if self.c_v is None:
+            return
+        index = (self.i_s, self.j_s, self.k_s, self.direction.value)
+        # Use the final coupling after all parallel R/C loads have attached.
+        self.c_v = -self.grid.c_eh[index] / self._resistance_area
+        voltage = self._v_f * self.waveform(self.grid.current_time - self.grid.dt / 2)
+        self.grid.E[index] += self.c_v * voltage
 
     def attach_to_grid(self):
         """Attach object to grid."""
-        self.idx_s = s = (
-            np.argmin(np.abs(self.grid.x - self.x_min)),
-            np.argmin(np.abs(self.grid.y - self.y_min)),
-            np.argmin(np.abs(self.grid.z - self.z_min)),
-        )
-        self.idx_e = e = (
-            np.argmin(np.abs(self.grid.x - self.x_max)),
-            np.argmin(np.abs(self.grid.y - self.y_max)),
-            np.argmin(np.abs(self.grid.z - self.z_max)),
-        )
-
-        dx, dy, dz = self.grid.spacing
-        dt = self.grid.dt
-        r_s = self.resistance
-        if self.idx_e[self.direction.value] <= self.idx_s[self.direction.value]:
+        super().attach_to_grid()
+        axis = self.direction.value
+        counts = np.subtract(self.idx_e, self.idx_s)
+        series = counts[axis]
+        if series <= 0:
             raise ValueError("Voltage source must span at least one field edge.")
-        if not np.isfinite(r_s) or r_s < 0:
+        if not np.isfinite(self.resistance) or self.resistance < 0:
             raise ValueError("Source resistance must be finite and nonnegative.")
-        r_s = max(r_s, 1e-20)
-
-        if self.direction == Direction.X:
-            self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0])
-            self.j_s = j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
-            self.k_s = k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-
-            self._v_f = 1 / (e[0] - s[0])
-            self._r_f = (e[1] - s[1] + 1) * (e[2] - s[2] + 1) * self._v_f
-            r_s *= self._r_f
-            term = (dt * dx) / (r_s * dy * dz)
-            eps = self.grid.eps_r[i_s, j_s, k_s, 0] * EPS_0
-            sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 0]
-
-            self.grid.c_ee[i_s, j_s, k_s, 0] = (2 * eps - dt * sigma_e - term) / (
-                2 * eps + dt * sigma_e + term
-            )
-            self.grid.c_eh[i_s, j_s, k_s, 0] = (2 * dt) / (
-                2 * eps + dt * sigma_e + term
-            )
-            self.c_v = -(2 * dt) / (2 * eps + dt * sigma_e + term) / (r_s * dy * dz)
-
-        elif self.direction == Direction.Y:
-            self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
-            self.j_s = j_s = slice(self.idx_s[1], self.idx_e[1])
-            self.k_s = k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-            self._v_f = 1 / (e[1] - s[1])
-            self._r_f = (e[0] - s[0] + 1) * (e[2] - s[2] + 1) * self._v_f
-            r_s *= self._r_f
-            term = (dt * dy) / (r_s * dx * dz)
-
-            eps = self.grid.eps_r[i_s, j_s, k_s, 1] * EPS_0
-            sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 1]
-
-            self.grid.c_ee[i_s, j_s, k_s, 1] = (2 * eps - dt * sigma_e - term) / (
-                2 * eps + dt * sigma_e + term
-            )
-            self.grid.c_eh[i_s, j_s, k_s, 1] = (2 * dt) / (
-                2 * eps + dt * sigma_e + term
-            )
-            self.c_v = -(2 * dt) / (2 * eps + dt * sigma_e + term) / (r_s * dx * dz)
-
-        else:
-            self.i_s = i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
-            self.j_s = j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
-            self.k_s = k_s = slice(self.idx_s[2], self.idx_e[2])
-            term = (dt * dz) / (r_s * dx * dy)
-
-            self._v_f = 1 / (e[2] - s[2])
-            self._r_f = (e[0] - s[0] + 1) * (e[1] - s[1] + 1) * self._v_f
-
-            eps = self.grid.eps_r[i_s, j_s, k_s, 2] * EPS_0
-            sigma_e = self.grid.sigma_e[i_s, j_s, k_s, 2]
-            r_s *= self._r_f
-            term = (dt * dz) / (r_s * dx * dy)
-
-            self.grid.c_ee[i_s, j_s, k_s, 2] = (2 * eps - dt * sigma_e - term) / (
-                2 * eps + dt * sigma_e + term
-            )
-            self.grid.c_eh[i_s, j_s, k_s, 2] = (2 * dt) / (
-                2 * eps + dt * sigma_e + term
-            )
-            self.c_v = -(2 * dt) / (2 * eps + dt * sigma_e + term) / (r_s * dx * dy)
+        parallel = np.prod([counts[d] + 1 for d in range(3) if d != axis])
+        self._v_f = 1 / series
+        self._r_f = parallel / series
+        resistance = max(self.resistance, 1e-20) * self._r_f
+        area = np.prod([self.grid.spacing[d] for d in range(3) if d != axis])
+        self._resistance_area = resistance * area
+        self.i_s, self.j_s, self.k_s = (
+            slice(s, e + (d != axis))
+            for d, (s, e) in enumerate(zip(self.idx_s, self.idx_e))
+        )
+        index = (self.i_s, self.j_s, self.k_s, axis)
+        self.grid._add_electric_load(
+            index, conductivity=self.grid.spacing[axis] / self._resistance_area
+        )
+        self.c_v = -self.grid.c_eh[index] / self._resistance_area
 
     def plot_3d(self, ax, alpha: float = 0.5):
         """Plot a brick and attach to an axis."""

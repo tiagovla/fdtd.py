@@ -25,7 +25,6 @@
 """
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 
@@ -63,7 +62,6 @@ def simulate(cells, steps, formulation, *, progress=True):
     )
     grid.add(source)
     grid.run(steps, progress=progress)
-    grid.plot_disc3()
     x, y = np.meshgrid(grid.x, grid.y, indexing="ij")
     positions = np.stack((x, y, np.zeros_like(x)), axis=-1)
     incident = wave.electric_field(positions, grid.time_passed)[..., 2]
@@ -84,7 +82,6 @@ def main():
     parser.add_argument("--cells", type=int, default=80)
     parser.add_argument("--steps", type=int, default=150)
     parser.add_argument("--no-plot", action="store_true")
-    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if args.cells < 40:
         parser.error("--cells must be at least 40")
@@ -93,7 +90,7 @@ def main():
     grid, total, scattered = simulate(
         args.cells, args.steps, args.formulation, progress=not args.no_plot
     )
-    if not args.no_plot or args.output:
+    if not args.no_plot:
         plt = pyplot()
         fig, axes = plt.subplots(1, 2, figsize=(11, 4), constrained_layout=True)
         for ax, field, title in zip(
@@ -110,10 +107,9 @@ def main():
             )
             ax.set(title=title, xlabel="x [mm]", ylabel="y [mm]")
             fig.colorbar(image, ax=ax, label="V/m")
-        if args.output:
-            fig.savefig(args.output, dpi=160)
-        if not args.no_plot:
-            plt.show()
+        geometry = grid.plot_geometry(z_view=True, show=False)
+        plt.show()
+        plt.close(geometry.figure)
         plt.close(fig)
     print(
         f"Completed {grid.current_time_step} steps ({args.formulation}); "

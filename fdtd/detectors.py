@@ -233,9 +233,13 @@ class Detector(FDTDElementBase):
         """Compatibility spelling for post_process()."""
         return self.post_process(**kwargs)
 
-    def plot(self, component="real"):
-        if not self._plot:
-            return
+    def plot(self, component="real", *, ax=None, show=True, label=None):
+        """Plot captured samples on an optional axis and return that axis.
+
+        The constructor's ``plot`` flag controls automatic plotting after a run;
+        explicit calls work regardless of that flag. ``show=False`` permits
+        overlays and saving figures without opening a window.
+        """
         if self.captured is None:
             raise RuntimeError("No detector samples are available.")
         transforms = {
@@ -251,10 +255,28 @@ class Detector(FDTDElementBase):
             return
         values = transforms[component](self.captured[..., :count])
         plt = pyplot()
-        _, ax = plt.subplots()
-        ax.plot(self.time[:count], values.reshape(-1, count).T)
+        if ax is None:
+            _, ax = plt.subplots()
+        ax.plot(
+            self.time[:count],
+            values.reshape(-1, count).T,
+            label=label or self.name,
+        )
         ax.set_xlabel("Time [s]")
-        plt.show()
+        quantity = (
+            "Voltage"
+            if self._voltage
+            else self._field_name + self.direction.name.lower()
+        )
+        unit = "V" if self._voltage else ("V/m" if self._field_name == "E" else "A/m")
+        ax.set_ylabel(
+            f"{quantity} phase [rad]"
+            if component == "phase"
+            else f"{quantity} [{unit}]"
+        )
+        if show:
+            plt.show()
+        return ax
 
     def plot_3d(self, ax, alpha=0.5):
         x, y, z = np.meshgrid(

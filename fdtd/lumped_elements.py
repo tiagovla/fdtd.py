@@ -10,7 +10,6 @@ from typing import Optional
 import numpy as np
 
 from .bases import FDTDElementBase
-from .constants import FREESPACE_PERMITTIVITY as EPS_0
 from .utils import BoundingBox, Direction
 
 logger = logging.getLogger(__name__)
@@ -163,54 +162,12 @@ class Resistor(LumpedElement):
 
     def attach_to_grid(self):
         """Attach object to grid."""
-        self.idx_s = (
-            np.argmin(np.abs(self.grid.x - self.x_min)),
-            np.argmin(np.abs(self.grid.y - self.y_min)),
-            np.argmin(np.abs(self.grid.z - self.z_min)),
-        )
-        self.idx_e = (
-            np.argmin(np.abs(self.grid.x - self.x_max)),
-            np.argmin(np.abs(self.grid.y - self.y_max)),
-            np.argmin(np.abs(self.grid.z - self.z_max)),
-        )
-
-        dx, dy, dz = self.grid.spacing
-        dt = self.grid.dt
-        counts = np.subtract(self.idx_e, self.idx_s)
-        series = counts[self.direction.value]
-        parallel = np.prod(
-            [counts[d] + 1 for d in range(3) if d != self.direction.value]
-        )
-        if series <= 0:
-            raise ValueError("Resistor must span at least one field edge.")
         if not np.isfinite(self.resistance) or self.resistance <= 0:
             raise ValueError("Resistance must be finite and positive.")
-        r_s = self.resistance * parallel / series
-
-        if self.direction == Direction.X:
-            i_s = slice(self.idx_s[0], self.idx_e[0])
-            j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
-            k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-            term = (dt * dx) / (r_s * dy * dz)
-        elif self.direction == Direction.Y:
-            i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
-            j_s = slice(self.idx_s[1], self.idx_e[1])
-            k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-            term = (dt * dy) / (r_s * dx * dz)
-        else:
-            i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
-            j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
-            k_s = slice(self.idx_s[2], self.idx_e[2])
-            term = (dt * dz) / (r_s * dx * dy)
-
-        eps = self.grid.eps_r[i_s, j_s, k_s, self.direction.value] * EPS_0
-        sigma_e = self.grid.sigma_e[i_s, j_s, k_s, self.direction.value]
-
-        self.grid.c_ee[i_s, j_s, k_s, self.direction.value] = (
-            2 * eps - dt * sigma_e - term
-        ) / (2 * eps + dt * sigma_e + term)
-        self.grid.c_eh[i_s, j_s, k_s, self.direction.value] = (2 * dt) / (
-            2 * eps + dt * sigma_e + term
+        self._set_region()
+        resistance = self.resistance * self.parallel / self.series
+        self.grid._add_electric_load(
+            self.index, conductivity=self.edge_length / (resistance * self.edge_area)
         )
 
 
@@ -262,54 +219,12 @@ class Capacitor(LumpedElement):
 
     def attach_to_grid(self):
         """Attach object to grid."""
-        self.idx_s = (
-            np.argmin(np.abs(self.grid.x - self.x_min)),
-            np.argmin(np.abs(self.grid.y - self.y_min)),
-            np.argmin(np.abs(self.grid.z - self.z_min)),
-        )
-        self.idx_e = (
-            np.argmin(np.abs(self.grid.x - self.x_max)),
-            np.argmin(np.abs(self.grid.y - self.y_max)),
-            np.argmin(np.abs(self.grid.z - self.z_max)),
-        )
-
-        dx, dy, dz = self.grid.spacing
-        dt = self.grid.dt
-        counts = np.subtract(self.idx_e, self.idx_s)
-        series = counts[self.direction.value]
-        parallel = np.prod(
-            [counts[d] + 1 for d in range(3) if d != self.direction.value]
-        )
-        if series <= 0:
-            raise ValueError("Capacitor must span at least one field edge.")
         if not np.isfinite(self.capacitance) or self.capacitance <= 0:
             raise ValueError("Capacitance must be finite and positive.")
-        c_s = self.capacitance * series / parallel
-
-        if self.direction == Direction.X:
-            i_s = slice(self.idx_s[0], self.idx_e[0])
-            j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
-            k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-            term = (2 * c_s * dx) / (dy * dz)
-        elif self.direction == Direction.Y:
-            i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
-            j_s = slice(self.idx_s[1], self.idx_e[1])
-            k_s = slice(self.idx_s[2], self.idx_e[2] + 1)
-            term = (2 * c_s * dy) / (dx * dz)
-        else:
-            i_s = slice(self.idx_s[0], self.idx_e[0] + 1)
-            j_s = slice(self.idx_s[1], self.idx_e[1] + 1)
-            k_s = slice(self.idx_s[2], self.idx_e[2])
-            term = (2 * c_s * dz) / (dx * dy)
-
-        eps = self.grid.eps_r[i_s, j_s, k_s, self.direction.value] * EPS_0
-        sigma_e = self.grid.sigma_e[i_s, j_s, k_s, self.direction.value]
-
-        self.grid.c_ee[i_s, j_s, k_s, self.direction.value] = (
-            2 * eps - dt * sigma_e + term
-        ) / (2 * eps + dt * sigma_e + term)
-        self.grid.c_eh[i_s, j_s, k_s, self.direction.value] = (2 * dt) / (
-            2 * eps + dt * sigma_e + term
+        self._set_region()
+        capacitance = self.capacitance * self.series / self.parallel
+        self.grid._add_electric_load(
+            self.index, permittivity=capacitance * self.edge_length / self.edge_area
         )
 
 
@@ -374,11 +289,10 @@ class Inductor(LumpedElement):
             * self.edge_length
             / (inductance * self.edge_area * (1 + damping))
         )
-        self._coupling = -self.grid.c_eh[self.index].copy()
         self.current_density = np.zeros_like(self.grid.E[self.index])
 
     def update_E(self):
-        self.grid.E[self.index] += self._coupling * self.current_density
+        self.grid.E[self.index] -= self.grid.c_eh[self.index] * self.current_density
         self.current_density = (
             self._decay * self.current_density + self._drive * self.grid.E[self.index]
         )
@@ -467,6 +381,10 @@ class Diode(LumpedElement):
         field = self.grid.E[self.index].item()
         if not np.isfinite(field) or field.imag != 0:
             raise ValueError("Nonlinear diodes require finite real time-domain fields.")
+        # Later parallel loads can change the final electric coupling.
+        self._gamma = (
+            float(self.grid.c_eh[self.index].item()) * self.edge_length / self.edge_area
+        )
         predicted = self.polarity * self.edge_length * field.real
         midpoint = (self.previous_voltage + predicted) / 2
         junction = self._junction_voltage(midpoint)

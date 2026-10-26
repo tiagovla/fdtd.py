@@ -85,7 +85,6 @@ def main():
         bz_path,
         bands,
         1e-6,
-        args.output,
         not args.no_plot,
         y_limits=(0, 1),
         curves=pwe,

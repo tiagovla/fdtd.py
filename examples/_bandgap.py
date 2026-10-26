@@ -24,7 +24,6 @@ def arguments(dimension):
         help="number of plane-wave harmonics per axis",
     )
     parser.add_argument("--no-plot", action="store_true")
-    parser.add_argument("--output")
     args = parser.parse_args()
     if (
         args.cells < 8
@@ -67,8 +66,8 @@ def path(dimension, intervals, period):
     )
 
 
-def draw(bz_path, bands, period, output, show, y_limits=None, curves=None):
-    if not output and not show:
+def draw(bz_path, bands, period, show, y_limits=None, curves=None):
+    if not show:
         return
     import matplotlib.pyplot as plt
 
@@ -127,8 +126,5 @@ def draw(bz_path, bands, period, output, show, y_limits=None, curves=None):
     if unique:
         ax.legend(unique.values(), unique.keys())
     ax.figure.tight_layout()
-    if output:
-        ax.figure.savefig(output)
-    if show:
-        plt.show()
+    plt.show()
     plt.close(ax.figure)
